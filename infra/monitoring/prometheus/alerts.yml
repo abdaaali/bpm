@@ -1,0 +1,60 @@
+groups:
+  - name: bpm-service-health
+    rules:
+      # Any scraped service unreachable for >2m
+      - alert: ServiceDown
+        expr: up{job!="prometheus"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Service {{ $labels.job }} is DOWN"
+          description: "Prometheus cannot scrape {{ $labels.job }} ({{ $labels.instance }}) for over 2 minutes."
+
+      # Event-loop saturation → the Node service is struggling under load
+      - alert: ServiceHighEventLoopLag
+        expr: nodejs_eventloop_lag_p99_seconds > 0.2
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.job }} event-loop lag high"
+          description: "p99 event-loop lag is {{ $value }}s on {{ $labels.job }} (>200ms for 5m)."
+
+      # Memory pressure
+      - alert: ServiceHighMemory
+        expr: process_resident_memory_bytes > 700 * 1024 * 1024
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.job }} high memory"
+          description: "RSS {{ $value | humanize1024 }}B on {{ $labels.job }} (>700MB for 10m)."
+
+      # Crash loop / flapping — restarted repeatedly in the last 15m
+      - alert: ServiceFlapping
+        expr: changes(process_start_time_seconds[15m]) > 2
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.job }} is restarting repeatedly"
+          description: "{{ $labels.job }} restarted {{ $value }} times in 15m."
+
+  - name: bpm-business
+    rules:
+      # Alarm→case durable-sync dead-letters (C5). Requires the bpm_outbox_dead
+      # gauge from integration-hub; alerts when any alarm resolution permanently
+      # failed to reach case-service.
+      - alert: OutboxDeadLetter
+        expr: bpm_outbox_dead > 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "Alarm⇄case outbox has dead-lettered messages"
+          description: "{{ $value }} alarm-sync message(s) permanently failed delivery — linked cases may be out of sync."
+
+      # Alarm enrichment backlog (existing gauge), if it grows unbounded
+      - alert: EnrichmentBacklog
+        expr: pending_enrichment_jobs > 100
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Alarm enrichment backlog growing"
+          description: "{{ $value }} pending enrichment jobs for >10m."

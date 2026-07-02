@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BPM Portal — HLD &amp; LLD</title>
+<style>
+  /* ── Base ── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #1a1a2e; line-height: 1.6; }
+
+  /* ── Page breaks ── */
+  .page-break { page-break-after: always; }
+  .no-break   { page-break-inside: avoid; }
+
+  /* ── Cover page ── */
+  .cover {
+    height: 100vh; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center;
+    background: linear-gradient(135deg, #0f3460 0%, #16213e 50%, #0f3460 100%);
+    color: white; padding: 60px;
+  }
+  .cover .logo { font-size: 52pt; margin-bottom: 12px; }
+  .cover h1 { font-size: 28pt; font-weight: 700; letter-spacing: 1px; margin-bottom: 10px; }
+  .cover .subtitle { font-size: 15pt; color: #a8d8ea; margin-bottom: 40px; }
+  .cover .divider { width: 80px; height: 3px; background: #e94560; margin: 0 auto 40px; }
+  .cover .meta { font-size: 11pt; color: #c9d6df; line-height: 2; }
+  .cover .meta strong { color: white; }
+  .cover .badge {
+    display: inline-block; background: #e94560; color: white;
+    padding: 4px 14px; border-radius: 20px; font-size: 9pt; font-weight: 600;
+    margin-top: 20px; letter-spacing: 1px;
+  }
+
+  /* ── Page layout ── */
+  .content { padding: 40px 50px; }
+
+  /* ── Section headings ── */
+  h1.section {
+    font-size: 18pt; font-weight: 700; color: white;
+    background: linear-gradient(135deg, #0f3460, #16213e);
+    padding: 14px 20px; margin: 30px 0 20px;
+    border-left: 5px solid #e94560; border-radius: 0 6px 6px 0;
+  }
+  h2 { font-size: 14pt; font-weight: 700; color: #0f3460; margin: 24px 0 12px;
+       border-bottom: 2px solid #e94560; padding-bottom: 4px; }
+  h3 { font-size: 12pt; font-weight: 700; color: #16213e; margin: 18px 0 8px; }
+  h4 { font-size: 10.5pt; font-weight: 700; color: #0f3460; margin: 12px 0 6px; }
+
+  /* ── TOC ── */
+  .toc { background: #f8f9ff; border: 1px solid #dde; border-radius: 8px; padding: 24px 30px; margin: 20px 0; }
+  .toc h2 { border: none; padding: 0; margin-bottom: 16px; }
+  .toc ul { list-style: none; }
+  .toc > ul > li { margin: 6px 0; font-weight: 600; font-size: 10.5pt; }
+  .toc > ul > li > ul { margin-left: 20px; margin-top: 4px; }
+  .toc > ul > li > ul > li { font-weight: 400; font-size: 10pt; margin: 3px 0; color: #444; }
+  .toc-num { color: #e94560; margin-right: 8px; font-weight: 700; }
+
+  /* ── Paragraphs ── */
+  p { margin-bottom: 10px; text-align: justify; }
+
+  /* ── Tables ── */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 9.5pt; }
+  thead tr { background: #0f3460; color: white; }
+  thead th { padding: 9px 10px; text-align: left; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #f4f6ff; }
+  tbody tr:hover { background: #e8eeff; }
+  tbody td { padding: 8px 10px; border-bottom: 1px solid #e0e4f0; vertical-align: top; }
+  .table-caption { font-size: 9pt; color: #666; margin-top: -10px; margin-bottom: 16px; font-style: italic; }
+
+  /* ── Code / pre ── */
+  pre {
+    background: #1e2a3a; color: #a8d8ea; padding: 14px 16px;
+    border-radius: 6px; font-size: 9pt; margin: 14px 0;
+    overflow-x: auto; white-space: pre-wrap; word-break: break-all;
+    border-left: 4px solid #e94560;
+  }
+  code { font-family: 'Courier New', monospace; }
+  .inline-code {
+    background: #eef0ff; color: #0f3460; padding: 1px 5px;
+    border-radius: 3px; font-family: monospace; font-size: 9.5pt;
+  }
+
+  /* ── Info boxes ── */
+  .box {
+    border-radius: 6px; padding: 14px 18px; margin: 16px 0;
+    border-left: 5px solid;
+  }
+  .box-info    { background: #e8f4fd; border-color: #2980b9; }
+  .box-success { background: #eafaf1; border-color: #27ae60; }
+  .box-warn    { background: #fef9e7; border-color: #f39c12; }
+  .box-key     { background: #f5eef8; border-color: #8e44ad; }
+  .box-title   { font-weight: 700; font-size: 10pt; margin-bottom: 6px; }
+
+  /* ── Columns ── */
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 16px 0; }
+  .cols3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 16px 0; }
+
+  /* ── Cards ── */
+  .card {
+    border: 1px solid #dde4ff; border-radius: 8px; padding: 16px;
+    background: #fafbff;
+  }
+  .card-header {
+    font-weight: 700; font-size: 11pt; color: #0f3460;
+    border-bottom: 1px solid #dde; padding-bottom: 6px; margin-bottom: 10px;
+  }
+
+  /* ── Pill chips ── */
+  .chip {
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    font-size: 8.5pt; font-weight: 600; margin: 2px;
+  }
+  .chip-blue   { background: #d6e4ff; color: #0f3460; }
+  .chip-green  { background: #d6ffe4; color: #155724; }
+  .chip-red    { background: #ffe0e0; color: #721c24; }
+  .chip-purple { background: #eed6ff; color: #4a0072; }
+  .chip-orange { background: #fff3d6; color: #7a4200; }
+  .chip-grey   { background: #eee; color: #444; }
+
+  /* ── Architecture diagram (ASCII-style boxes) ── */
+  .arch-diagram {
+    background: #0f1b2d; color: #a8d8ea; padding: 24px;
+    border-radius: 8px; font-family: monospace; font-size: 8.5pt;
+    line-height: 1.8; margin: 16px 0;
+  }
+
+  /* ── Lists ── */
+  ul, ol { margin: 8px 0 10px 22px; }
+  li { margin-bottom: 4px; }
+
+  /* ── Footer line ── */
+  .footer-note {
+    text-align: center; font-size: 8.5pt; color: #999;
+    border-top: 1px solid #eee; margin-top: 30px; padding-top: 14px;
+  }
+
+  /* ── Highlight row ── */
+  tr.highlight td { background: #fff3cd; font-weight: 600; }
+
+  /* ── Status dots ── */
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+  .dot-green  { background: #27ae60; }
+  .dot-blue   { background: #2980b9; }
+  .dot-orange { background: #f39c12; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     COVER PAGE
+════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="logo">⚙</div>
+  <h1>BPM Portal</h1>
+  <div class="subtitle">Business Process Management Solution</div>
+  <div class="divider"></div>
+  <div style="font-size:20pt; font-weight:300; color:#a8d8ea; margin-bottom:30px; letter-spacing:4px;">
+    HIGH-LEVEL DESIGN &nbsp;&amp;&nbsp; LOW-LEVEL DESIGN
+  </div>
+  <div class="meta">
+    <strong>Version:</strong> 1.0 &nbsp;&nbsp;|&nbsp;&nbsp;
+    <strong>Date:</strong> February 2026 &nbsp;&nbsp;|&nbsp;&nbsp;
+    <strong>Status:</strong> Released<br/>
+    <strong>Environment:</strong> Docker Compose (Self-Hosted)<br/>
+    <strong>Classification:</strong> Internal — Technical
+  </div>
+  <div class="badge">CONFIDENTIAL</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     TABLE OF CONTENTS
+════════════════════════════════════════════════════ -->
+<div class="content page-break">
+  <div class="toc">
+    <h2>Table of Contents</h2>
+    <ul>
+      <li><span class="toc-num">1.</span> Executive Summary</li>
+      <li><span class="toc-num">2.</span> Solution Overview
+        <ul>
+          <li>2.1 Business Objectives</li>
+          <li>2.2 Scope &amp; Capabilities</li>
+          <li>2.3 Technology Stack</li>
+        </ul>
+      </li>
+      <li><span class="toc-num">3.</span> High-Level Design (HLD)
+        <ul>
+          <li>3.1 System Architecture</li>
+          <li>3.2 Service Decomposition</li>
+          <li>3.3 Data Flow Architecture</li>
+          <li>3.4 Security Architecture</li>
+          <li>3.5 Integration Architecture</li>
+          <li>3.6 Observability &amp; Monitoring</li>
+        </ul>
+      </li>
+      <li><span class="toc-num">4.</span> Low-Level Design (LLD)
+        <ul>
+          <li>4.1 Database Schema</li>
+          <li>4.2 API Design</li>
+          <li>4.3 Service Internals</li>
+          <li>4.4 BPMN Execution Engine</li>
+          <li>4.5 Event-Driven Architecture (Kafka)</li>
+          <li>4.6 Authentication &amp; Multi-Tenancy</li>
+          <li>4.7 Frontend Architecture</li>
+        </ul>
+      </li>
+      <li><span class="toc-num">5.</span> Deployment Architecture</li>
+      <li><span class="toc-num">6.</span> Operational Guide</li>
+      <li><span class="toc-num">7.</span> Appendix</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 1 — EXECUTIVE SUMMARY
+════════════════════════════════════════════════════ -->
+<div class="content page-break">
+  <h1 class="section">1. Executive Summary</h1>
+
+  <p>The <strong>BPM Portal</strong> is a full-stack, cloud-ready Business Process Management platform built to digitalise, automate, and monitor enterprise workflows. It provides a unified environment for modelling processes in BPMN 2.0, executing them at runtime, managing ITIL service cases, enforcing multi-level approvals, and integrating with external systems — all governed by role-based access control and a complete audit trail.</p>
+
+  <div class="cols2">
+    <div class="box box-info">
+      <div class="box-title">🎯 Primary Goals</div>
+      <ul>
+        <li>Eliminate manual, paper-based workflows</li>
+        <li>Provide real-time process visibility &amp; SLA enforcement</li>
+        <li>Centralise approval chains across IT, Finance &amp; Operations</li>
+        <li>Enable no-code process design via a browser-based modeler</li>
+        <li>Deliver ITIL-aligned case management (Incident, Change, Problem, Request)</li>
+      </ul>
+    </div>
+    <div class="box box-success">
+      <div class="box-title">✅ Key Outcomes</div>
+      <ul>
+        <li>7 independent NestJS microservices, fully Dockerised</li>
+        <li>BPMN 2.0 process execution without an external engine</li>
+        <li>Real-time event streaming via Kafka (KRaft, no Zookeeper)</li>
+        <li>Zero-trust API gateway with Keycloak OIDC/JWT</li>
+        <li>Multi-tenant architecture with tenant isolation</li>
+        <li>Live analytics dashboard with SLA compliance tracking</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Solution at a Glance</h2>
+  <table>
+    <thead><tr><th>Dimension</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Architecture Style</strong></td><td>Microservices, Event-Driven, RESTful API</td></tr>
+      <tr><td><strong>Runtime</strong></td><td>Docker Compose (15 containers)</td></tr>
+      <tr><td><strong>Backend Framework</strong></td><td>NestJS (Node.js / TypeScript)</td></tr>
+      <tr><td><strong>Frontend</strong></td><td>React 18 + TypeScript + Material-UI + Vite</td></tr>
+      <tr><td><strong>Database</strong></td><td>PostgreSQL 15 (single shared instance, 6 migration sets)</td></tr>
+      <tr><td><strong>Message Broker</strong></td><td>Apache Kafka 3.x — Bitnami KRaft mode</td></tr>
+      <tr><td><strong>Auth</strong></td><td>Keycloak 24 — OIDC / JWT (RS256)</td></tr>
+      <tr><td><strong>Storage</strong></td><td>MinIO (S3-compatible) for file attachments</td></tr>
+      <tr><td><strong>BPMN Modeler</strong></td><td>bpmn-js (Camunda-compatible + Flowable import)</td></tr>
+      <tr><td><strong>Monitoring</strong></td><td>Prometheus + Grafana</td></tr>
+      <tr><td><strong>API Spec</strong></td><td>Swagger / OpenAPI (auto-generated per service)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 2 — SOLUTION OVERVIEW
+════════════════════════════════════════════════════ -->
+<div class="content page-break">
+  <h1 class="section">2. Solution Overview</h1>
+
+  <h2>2.1 Business Objectives</h2>
+  <p>Organisations frequently struggle with fragmented, email-driven processes that are invisible to management, difficult to audit, and impossible to improve systematically. The BPM Portal addresses this by providing:</p>
+  <ul>
+    <li><strong>Process Design:</strong> A drag-and-drop BPMN 2.0 studio for creating and publishing workflows without writing code.</li>
+    <li><strong>Process Execution:</strong> An embedded token-based execution engine that drives user tasks, service tasks, and gateway branching at runtime.</li>
+    <li><strong>Case Management:</strong> ITIL-aligned case lifecycle management for incidents, problems, change requests, service requests, and alarms.</li>
+    <li><strong>Approval Governance:</strong> Configurable multi-step approval chains with conditional routing, delegation, and escalation.</li>
+    <li><strong>Integration:</strong> Outbound connectors for REST APIs, webhooks, Kafka producers, and scheduled cron jobs — enabling automation without custom code.</li>
+    <li><strong>Visibility:</strong> Real-time analytics, bottleneck detection, SLA compliance monitoring, and a complete append-only audit trail.</li>
+  </ul>
+
+  <h2>2.2 Scope &amp; Capabilities</h2>
+  <div class="cols2">
+    <div class="card">
+      <div class="card-header">📋 Process Management</div>
+      <ul>
+        <li>BPMN 2.0 visual designer with Properties Panel</li>
+        <li>Import from Flowable / Camunda XML</li>
+        <li>Draft → Active → Archived lifecycle</li>
+        <li>Start/suspend/resume/terminate instances</li>
+        <li>Variable propagation through gateways</li>
+        <li>SLA timers on user tasks (5-min breach check)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">🎫 Case Management</div>
+      <ul>
+        <li>5 ITIL case types with auto-numbered IDs (INC, PRB, CHG, REQ, ALM)</li>
+        <li>Full state machine (new → open → resolved → closed)</li>
+        <li>SLA due-date enforcement by type + priority</li>
+        <li>Team &amp; individual assignment</li>
+        <li>Linked process instances per case</li>
+        <li>Work notes (internal/public comments)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">✅ Approvals</div>
+      <ul>
+        <li>Configurable multi-step policies</li>
+        <li>Condition-based step activation</li>
+        <li>Hierarchy-based (N levels up) routing</li>
+        <li>Role-based routing (any user in role)</li>
+        <li>Delegation &amp; out-of-office support</li>
+        <li>Parallel approval steps</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">🔗 Integration Hub</div>
+      <ul>
+        <li>REST outbound connector (any HTTP method)</li>
+        <li>Webhook receiver (inbound events)</li>
+        <li>Kafka producer connector</li>
+        <li>Cron scheduler with variable interpolation</li>
+        <li>Execution log per connector</li>
+        <li>Manual test execution from UI</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">📊 Analytics</div>
+      <ul>
+        <li>KPI cards: instances, tasks, SLA breaches</li>
+        <li>Bar chart: instances by definition</li>
+        <li>Line chart: started vs completed over time</li>
+        <li>Bottleneck table: queued tasks by node</li>
+        <li>SLA compliance table with progress bars</li>
+        <li>User workload distribution</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">🔔 Notifications</div>
+      <ul>
+        <li>In-app notification bell with unread count</li>
+        <li>Email channel support</li>
+        <li>Handlebars template engine</li>
+        <li>Kafka-triggered (auto on task/case events)</li>
+        <li>Mark-all-read from Work Inbox</li>
+        <li>Per-entity notification context</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>2.3 Technology Stack</h2>
+  <table>
+    <thead><tr><th>Layer</th><th>Technology</th><th>Version</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>Frontend</td><td>React + TypeScript</td><td>18.x</td><td>SPA UI</td></tr>
+      <tr><td>Frontend UI</td><td>Material-UI (MUI)</td><td>5.x</td><td>Component library</td></tr>
+      <tr><td>Frontend Build</td><td>Vite</td><td>5.x</td><td>Fast bundler</td></tr>
+      <tr><td>BPMN Editor</td><td>bpmn-js</td><td>latest</td><td>BPMN 2.0 modeler &amp; viewer</td></tr>
+      <tr><td>Charts</td><td>Recharts</td><td>2.x</td><td>Analytics visualisations</td></tr>
+      <tr><td>Backend</td><td>NestJS + TypeScript</td><td>10.x</td><td>Microservice framework</td></tr>
+      <tr><td>Runtime</td><td>Node.js</td><td>20.x LTS</td><td>JavaScript runtime</td></tr>
+      <tr><td>Database</td><td>PostgreSQL</td><td>15.x</td><td>Primary data store</td></tr>
+      <tr><td>DB Driver</td><td>pg (node-postgres)</td><td>8.x</td><td>Raw SQL, parameterized queries</td></tr>
+      <tr><td>Message Broker</td><td>Apache Kafka (KRaft)</td><td>3.x</td><td>Async event streaming</td></tr>
+      <tr><td>Kafka Client</td><td>KafkaJS</td><td>2.x</td><td>Producer &amp; consumer</td></tr>
+      <tr><td>Auth Server</td><td>Keycloak</td><td>24.x</td><td>OIDC / OAuth2 provider</td></tr>
+      <tr><td>Auth Library</td><td>passport-jwt + jwks-rsa</td><td>—</td><td>JWT validation via JWKS</td></tr>
+      <tr><td>Object Storage</td><td>MinIO</td><td>latest</td><td>S3-compatible file storage</td></tr>
+      <tr><td>Metrics</td><td>Prometheus + Grafana</td><td>latest</td><td>Infrastructure monitoring</td></tr>
+      <tr><td>Reverse Proxy</td><td>Nginx</td><td>1.25</td><td>Frontend serving + SPA routing</td></tr>
+      <tr><td>Container</td><td>Docker + Compose</td><td>v2</td><td>Orchestration &amp; isolation</td></tr>
+      <tr><td>Template Engine</td><td>Handlebars</td><td>4.x</td><td>Notification rendering</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 3 — HIGH-LEVEL DESIGN
+════════════════════════════════════════════════════ -->
+<div class="content page-break">
+  <h1 class="section">3. High-Level Design (HLD)</h1>
+
+  <h2>3.1 System Architecture</h2>
+  <p>The BPM Portal follows a <strong>microservices architecture</strong> with a dedicated API Gateway serving as the single entry point. Services communicate synchronously via HTTP (through the gateway or direct service-to-service) and asynchronously via Kafka topics. All services share a single PostgreSQL database with schema isolation enforced by tenant IDs.</p>
+
+  <div class="arch-diagram">
+    ╔══════════════════════════════════════════════════════════════════════╗
+    ║                     BROWSER / CLIENT                                ║
+    ║         React SPA  ←→  Keycloak OIDC (login / token refresh)       ║
+    ╚══════════════════════════════╤═══════════════════════════════════════╝
+                                   │ HTTPS :8080 (nginx)
+                                   ▼
+    ╔══════════════════════════════════════════════════════════════════════╗
+    ║                      NGINX (Frontend Proxy)                         ║
+    ║   Static assets  │  /api/v1/* → proxy_pass → API Gateway :3000     ║
+    ╚══════════════════════════════╤═══════════════════════════════════════╝
+                                   │ HTTP :3000
+                                   ▼
+    ╔══════════════════════════════════════════════════════════════════════╗
+    ║                       API GATEWAY  :3000                            ║
+    ║  JWT Validation (JWKS)  │  Tenant Injection  │  Request Routing     ║
+    ╚═══╤══════╤══════╤══════╤══════╤═════╤════════╤══════════════════════╝
+        │      │      │      │      │     │        │
+        ▼      ▼      ▼      ▼      ▼     ▼        ▼
+    ┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐
+    │ ORG  ││APPROV││ BPM  ││ CASE ││INTEG.││NOTIF.││AUDIT │
+    │:3001 ││:3002 ││:3003 ││:3004 ││:3005 ││:3006 ││(GW)  │
+    └──┬───┘└──┬───┘└──┬───┘└──┬───┘└──┬───┘└──┬───┘└──────┘
+       │       │       │       │       │       │
+       └───────┴───────┴───────┴───────┴───────┘
+                          │
+                ╔══════════════════╗        ╔═════════════╗
+                ║  PostgreSQL :5432║        ║  Kafka :9092 ║
+                ║  (bpm_db)        ║        ║  (KRaft)     ║
+                ╚══════════════════╝        ╚══════════════╝
+                          │                       │
+                ╔═════════════╗         ╔═════════════════╗
+                ║  MinIO :9000║         ║ Kafka-UI  :8090  ║
+                ╚═════════════╝         ╚═════════════════╝
+  </div>
+
+  <h2>3.2 Service Decomposition</h2>
+  <table>
+    <thead><tr><th>Service</th><th>Port</th><th>Domain Responsibility</th><th>Key Dependencies</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>api-gateway</strong></td><td>3000</td>
+        <td>Single entry point — JWT validation, tenant injection, request proxying, Swagger aggregation, audit logging</td>
+        <td>Keycloak (JWKS), all downstream services, Kafka</td>
+      </tr>
+      <tr>
+        <td><strong>org-service</strong></td><td>3001</td>
+        <td>Organisational structure — tenants, org units (hierarchical materialized path), users, roles, positions, delegation</td>
+        <td>PostgreSQL</td>
+      </tr>
+      <tr>
+        <td><strong>approval-service</strong></td><td>3002</td>
+        <td>Approval workflow engine — policies (multi-step, conditional), instances, decisions, delegations</td>
+        <td>PostgreSQL, Kafka, Org-Service (manager resolution)</td>
+      </tr>
+      <tr>
+        <td><strong>bpm-orchestrator</strong></td><td>3003</td>
+        <td>Core BPM engine — BPMN definitions, process execution, task management, analytics, SLA scheduling</td>
+        <td>PostgreSQL, Kafka</td>
+      </tr>
+      <tr>
+        <td><strong>case-service</strong></td><td>3004</td>
+        <td>ITIL case management — incident/change/problem/request/alarm lifecycle, SLA enforcement, comments, timeline</td>
+        <td>PostgreSQL, Kafka</td>
+      </tr>
+      <tr>
+        <td><strong>integration-hub</strong></td><td>3005</td>
+        <td>Outbound integrations — REST, webhook, Kafka producer, cron connectors; execution logs; Kafka consumer for service tasks</td>
+        <td>PostgreSQL, Kafka, external HTTP endpoints</td>
+      </tr>
+      <tr>
+        <td><strong>notification-service</strong></td><td>3006</td>
+        <td>Notification delivery — templates, in-app and email channels, Kafka-driven triggers, read status</td>
+        <td>PostgreSQL, Kafka</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>3.3 Data Flow Architecture</h2>
+
+  <h3>Synchronous Flow (REST)</h3>
+  <p>The primary path for user-initiated actions:</p>
+  <pre>Browser → Nginx :8080 → /api/v1/* → API Gateway :3000
+  → [JWT Validation] → [Tenant Extraction] → [Proxy Forward]
+  → Downstream Service → PostgreSQL → Response → Browser</pre>
+
+  <h3>Process Execution Flow</h3>
+  <p>When a user completes a task, the process engine advances automatically:</p>
+  <pre>POST /api/v1/tasks/{id}/complete
+  → BPM Orchestrator: task.service.ts
+  → UPDATE tasks SET status='completed', outcome=…
+  → process-instance.service.ts: onTaskCompleted()
+  → parseBpmn(instance.bpmn_xml)
+  → getOutgoingFlows(nodeId)
+  → advance() : evaluate conditions / create next tasks
+  → Kafka: bpm.task.completed  → Notification Service (email/in-app)
+  → Kafka: bpm.task.created    → Notification Service (new task alert)</pre>
+
+  <h3>Case Creation with Process Linkage</h3>
+  <pre>POST /api/v1/cases  (title, type, priority, assigned_team_id, context)
+  → case-service: create()  → INSERT cases RETURNING *
+  → Kafka: bpm.case.created → Notification Service + Integration Hub
+  POST /api/v1/processes/instances  (definitionId, caseId, businessKey, variables)
+  → bpm-orchestrator: start()  → INSERT process_instances
+  → parseBpmn() → advance() → createTask() → Kafka: bpm.task.created</pre>
+
+  <h3>Asynchronous Event Flow</h3>
+  <pre>Event Producer          Kafka Topic                  Consumer(s)
+  ─────────────────────────────────────────────────────────────────
+  BPM Orchestrator  →  bpm.task.created         →  Notification Svc
+  BPM Orchestrator  →  bpm.task.sla_breach      →  Notification Svc
+  BPM Orchestrator  →  bpm.service.task         →  Integration Hub
+  Approval Svc      →  bpm.approvals            →  Notification Svc
+  Case Svc          →  bpm.case.created         →  Notification Svc, Integration Hub
+  Case Svc          →  bpm.case.sla_breach      →  Notification Svc</pre>
+</div>
+
+<div class="content page-break">
+  <h2>3.4 Security Architecture</h2>
+  <div class="box box-key">
+    <div class="box-title">🔐 Zero-Trust Perimeter</div>
+    Every request entering the API Gateway is validated against Keycloak's JWKS endpoint before being proxied downstream. Internal service-to-service calls bypass public auth but rely on network isolation (Docker internal network).
+  </div>
+
+  <table>
+    <thead><tr><th>Layer</th><th>Mechanism</th><th>Details</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Identity Provider</strong></td><td>Keycloak 24</td><td>OAuth2 / OIDC server, realm "bpm", RS256 signed JWTs, PKCE flow for SPA</td></tr>
+      <tr><td><strong>Token Validation</strong></td><td>JWKS (passport-jwt + jwks-rsa)</td><td>Public key fetched from <span class="inline-code">http://keycloak:8080/realms/bpm/protocol/openid-connect/certs</span>, cached, rate-limited</td></tr>
+      <tr><td><strong>Tenant Isolation</strong></td><td>TenantInterceptor</td><td>Extracts tenantId from JWT claim → injects as <span class="inline-code">X-Tenant-ID</span> header. Every DB query filters by tenant_id.</td></tr>
+      <tr><td><strong>User Identity</strong></td><td>X-User-ID header</td><td>Gateway passes <span class="inline-code">req.user.sub</span> (Keycloak UUID) as <span class="inline-code">X-User-ID</span>. Services resolve to internal UUID via <span class="inline-code">keycloak_id</span> lookup.</td></tr>
+      <tr><td><strong>Role-Based Access</strong></td><td>Realm roles</td><td>Keycloak <span class="inline-code">realm_access.roles</span> array in JWT payload. Roles: admin, manager, requester, finance_controller, cab_member, it_engineer</td></tr>
+      <tr><td><strong>HTTPS</strong></td><td>Keycloak TLS + Nginx</td><td>Keycloak exposed on :8443 (HTTPS). Production: terminate TLS at load balancer.</td></tr>
+      <tr><td><strong>Audit Trail</strong></td><td>PostgreSQL RULE</td><td>Append-only audit_log table — UPDATE and DELETE are blocked by database rules. Actor ID, before/after state, IP address recorded.</td></tr>
+      <tr><td><strong>HTTP Headers</strong></td><td>helmet.js</td><td>All NestJS services use helmet for security headers (CSP, HSTS, X-Frame-Options).</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3.5 Integration Architecture</h2>
+  <p>External integrations are managed entirely through the <strong>Integration Hub</strong> service, which abstracts connectivity into reusable connector configurations stored in the database.</p>
+  <div class="cols2">
+    <div class="card">
+      <div class="card-header">🌐 Connector Types</div>
+      <ul>
+        <li><strong>REST</strong> — Outbound HTTP (GET/POST/PUT/PATCH/DELETE). Supports headers, body, authentication, variable interpolation in URLs and payloads using <span class="inline-code">{{variableName}}</span> syntax.</li>
+        <li><strong>Webhook</strong> — Inbound event receiver. Validates incoming payloads and routes to internal processing.</li>
+        <li><strong>Kafka Producer</strong> — Publish messages to Kafka topics from process context.</li>
+        <li><strong>Cron</strong> — Scheduled execution via Node.js timers (loaded at startup from DB for active connectors).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">⚡ Kafka Service-Task Bridge</div>
+      <p style="margin-bottom:8px;">When the BPMN engine encounters a <span class="inline-code">serviceTask</span> node, it emits a <span class="inline-code">bpm.service.task</span> event containing:</p>
+      <ul>
+        <li><strong>serviceType</strong> — maps to a connector category</li>
+        <li><strong>config</strong> — connector-specific parameters</li>
+        <li><strong>variables</strong> — current process variables</li>
+      </ul>
+      <p style="margin-top:8px;">The Integration Hub consumes this event and executes the appropriate connector, enabling fully automated service task execution within BPMN flows.</p>
+    </div>
+  </div>
+
+  <h2>3.6 Observability &amp; Monitoring</h2>
+  <table>
+    <thead><tr><th>Tool</th><th>Port</th><th>What it Monitors</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Prometheus</strong></td><td>9090</td><td>Scrapes metrics from all NestJS services (<span class="inline-code">/metrics</span> endpoint), Kafka, PostgreSQL</td></tr>
+      <tr><td><strong>Grafana</strong></td><td>3300</td><td>Dashboards for request rates, error rates, DB connections, Kafka lag</td></tr>
+      <tr><td><strong>Kafka UI</strong></td><td>8090</td><td>Topic browser, consumer group lag, message inspector</td></tr>
+      <tr><td><strong>MinIO Console</strong></td><td>9001</td><td>Object storage browser, bucket management</td></tr>
+      <tr><td><strong>Audit Log</strong></td><td>(API)</td><td>Business-level audit: who did what, when, with before/after state</td></tr>
+      <tr><td><strong>Gateway Kafka</strong></td><td>(Kafka)</td><td>Every API request logged to <span class="inline-code">bpm.gateway.requests</span> with requestId, duration, status code</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 4 — LOW-LEVEL DESIGN
+════════════════════════════════════════════════════ -->
+<div class="content page-break">
+  <h1 class="section">4. Low-Level Design (LLD)</h1>
+
+  <h2>4.1 Database Schema</h2>
+  <div class="box box-info">
+    <div class="box-title">ℹ Design Principle — Shared Database, Logical Isolation</div>
+    All services share a single PostgreSQL instance (<span class="inline-code">bpm_db</span>). Multi-tenancy is enforced at the application layer: every table carries a <span class="inline-code">tenant_id UUID NOT NULL</span> column that acts as a partition key. All queries include a <span class="inline-code">WHERE tenant_id=$1</span> predicate. Row-level security is not used; isolation is enforced by the application tier.
+  </div>
+
+  <h3>Migration 001 — Tenants &amp; Organisation</h3>
+  <table>
+    <thead><tr><th>Table</th><th>Key Columns</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>tenants</strong></td><td>id, name, slug, settings JSONB</td><td>Root of multi-tenancy; slug used in URL routing</td></tr>
+      <tr><td><strong>org_units</strong></td><td>id, tenant_id, name, type, parent_id, path (VARCHAR materialized path), manager_id</td><td>Hierarchy via materialized path: <span class="inline-code">/parent_id/child_id/</span>. Types: company → division → department → section → team</td></tr>
+      <tr><td><strong>positions</strong></td><td>id, org_unit_id, name, level, is_manager</td><td>Job titles within an org unit</td></tr>
+      <tr><td><strong>roles</strong></td><td>id, tenant_id, name, key, permissions JSONB</td><td>RBAC — permissions array of action strings</td></tr>
+      <tr><td><strong>users</strong></td><td>id, tenant_id, keycloak_id, email, first_name, last_name, username, active</td><td>keycloak_id links to Keycloak realm user UUID for actor resolution</td></tr>
+      <tr><td><strong>user_org_assignments</strong></td><td>user_id, org_unit_id, position_id, is_primary, effective_from/to</td><td>A user can belong to multiple org units; primary flag for default team</td></tr>
+      <tr><td><strong>user_roles</strong></td><td>user_id, role_id, granted_by, granted_at</td><td>Many-to-many role assignments</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Migration 002 — Approval Engine</h3>
+  <table>
+    <thead><tr><th>Table</th><th>Key Columns</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>approval_policies</strong></td><td>id, tenant_id, name, entity_type, steps JSONB, conditions JSONB, created_by</td><td>Steps: array of {index, type: hierarchy|role|user, level, roleId, parallel, condition}</td></tr>
+      <tr><td><strong>approval_instances</strong></td><td>id, policy_id, entity_type, entity_id, status (pending/approved/rejected/cancelled/escalated), requester_id, resolved_steps JSONB</td><td>Snapshot of steps at creation time to prevent policy mutation affecting in-flight approvals</td></tr>
+      <tr><td><strong>approval_step_decisions</strong></td><td>instance_id, step_index, approver_id, decision (approved/rejected/delegated/escalated), comments, decided_at</td><td>Immutable per-step decisions</td></tr>
+      <tr><td><strong>delegations</strong></td><td>delegator_id, delegate_id, tenant_id, start_date, end_date, active, reason</td><td>Out-of-office delegation; approval resolver checks active delegations first</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Migration 003 — BPM Process Engine</h3>
+  <table>
+    <thead><tr><th>Table</th><th>Key Columns</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>process_definitions</strong></td><td>id, tenant_id, name, slug (UNIQUE per tenant), bpmn_xml TEXT, config JSONB, version INT, status (draft/active/archived)</td><td>bpmn_xml stores the full BPMN 2.0 XML. Only <span class="inline-code">active</span> definitions can be started.</td></tr>
+      <tr><td><strong>process_instances</strong></td><td>id, tenant_id, definition_id, business_key, status (active/completed/suspended/terminated), variables JSONB, current_node_id, initiator_id, case_id, started_at, completed_at</td><td>variables JSONB accumulates task outputs; merged at each gateway evaluation</td></tr>
+      <tr><td><strong>tasks</strong></td><td>id, tenant_id, process_instance_id, node_id, name, type, status (pending/in_progress/completed/cancelled/escalated), assignee_id, candidate_groups JSONB, variables JSONB, due_at, sla_breached, outcome, claimed_at, completed_at, comments JSONB</td><td>candidate_groups can hold group names or individual user IDs for flexible assignment</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="content page-break">
+  <h3>Migration 004 — Case Management</h3>
+  <table>
+    <thead><tr><th>Table</th><th>Key Columns</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>cases</strong></td><td>id, tenant_id, case_number (INC1001), type (incident/problem/change/request/alarm), title, status, priority, impact, urgency, requester_id, assignee_id, assigned_team_id, process_instance_id, context JSONB, sla_due_at, breached, resolved_at, closed_at</td><td>ITIL-aligned. SLA computed from type × priority matrix. context JSONB stores process-derived form data.</td></tr>
+      <tr><td><strong>case_sequences</strong></td><td>tenant_id, prefix, next_val</td><td>ON CONFLICT DO UPDATE to atomically increment per-prefix counter (INC, PRB, CHG, REQ, ALM)</td></tr>
+      <tr><td><strong>case_comments</strong></td><td>case_id, tenant_id, author_id, body, internal (bool)</td><td>internal=true for agent-only work notes hidden from requesters</td></tr>
+      <tr><td><strong>attachments</strong></td><td>entity_type, entity_id, storage_path, filename, mime_type, uploaded_by, size_bytes</td><td>MinIO storage path; entity_type allows attachments on cases, tasks, or any entity</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Migration 005 — Integration &amp; Notifications</h3>
+  <table>
+    <thead><tr><th>Table</th><th>Key Columns</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>connectors</strong></td><td>id, tenant_id, name, type (rest/webhook/kafka_producer/cron), config JSONB, trigger_config JSONB, status (active/inactive/error)</td><td>config holds type-specific settings (url, method, headers for REST; topic for Kafka; schedule for cron)</td></tr>
+      <tr><td><strong>connector_logs</strong></td><td>connector_id, triggered_by, request_payload JSONB, response_payload JSONB, status (success/error/retrying), duration_ms, error_message</td><td>Full request/response capture for debugging</td></tr>
+      <tr><td><strong>notification_templates</strong></td><td>tenant_id, slug (UNIQUE per tenant), name, channel (email/in_app/both), subject, body (Handlebars)</td><td>Reusable templates; body supports <span class="inline-code">{{variableName}}</span> context substitution</td></tr>
+      <tr><td><strong>notifications</strong></td><td>tenant_id, recipient_id, channel, subject, body, entity_type, entity_id, read_at, delivery_status</td><td>recipient_id → users.id FK. read_at NULL = unread. delivery_status: sent/failed/pending</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Migration 006 — Audit Log</h3>
+  <table>
+    <thead><tr><th>Column</th><th>Type</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td>tenant_id</td><td>UUID</td><td>Tenant partition key</td></tr>
+      <tr><td>entity_type</td><td>VARCHAR</td><td>e.g. 'task', 'case', 'process_instance', 'user'</td></tr>
+      <tr><td>entity_id</td><td>UUID</td><td>FK to the entity being acted upon</td></tr>
+      <tr><td>action</td><td>VARCHAR</td><td>e.g. 'created', 'completed', 'status.resolved', 'variables_updated'</td></tr>
+      <tr><td>actor_id</td><td>UUID (nullable)</td><td>Internal user UUID; NULL for system-generated events</td></tr>
+      <tr><td>before_state</td><td>JSONB</td><td>Snapshot of entity state before the action</td></tr>
+      <tr><td>after_state</td><td>JSONB</td><td>Snapshot of entity state after the action</td></tr>
+      <tr><td>ip_address</td><td>VARCHAR</td><td>Client IP (injected by gateway)</td></tr>
+    </tbody>
+  </table>
+  <div class="box box-warn">
+    <div class="box-title">⚠ Immutability Enforcement</div>
+    A PostgreSQL <span class="inline-code">RULE</span> blocks <span class="inline-code">UPDATE</span> and <span class="inline-code">DELETE</span> on <span class="inline-code">audit_log</span>. Even a superuser cannot alter audit records through SQL commands — they would need to DROP the rule first, which is itself logged by Postgres activity monitoring.
+  </div>
+</div>
+
+<div class="content page-break">
+  <h2>4.2 API Design</h2>
+  <p>All public APIs are mounted under <span class="inline-code">/api/v1/</span> at the gateway. Services that use <span class="inline-code">setGlobalPrefix('api')</span> have their internal routes prefixed; the gateway adjusts forwarded paths accordingly.</p>
+
+  <h3>Request Pipeline</h3>
+  <pre>Client Request
+  → Nginx (reverse proxy, static file serving)
+  → API Gateway :3000
+    [1] JwtAuthGuard   — validates Bearer token via Keycloak JWKS
+    [2] TenantInterceptor — extracts tenant_id from JWT, injects X-Tenant-ID
+    [3] Route Controller — matches /api/v1/{service}/{resource}
+    [4] ProxyService.forward() — HTTP forward to downstream service
+  → Downstream Service
+    [5] Extract headers — X-Tenant-ID, X-User-ID
+    [6] Business logic — DB queries, Kafka publish
+    [7] Response — JSON serialised
+  → API Gateway → Client</pre>
+
+  <h3>Complete Route Reference</h3>
+  <table>
+    <thead><tr><th>Prefix</th><th>Method</th><th>Path</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td colspan="4" style="background:#0f3460;color:white;font-weight:600;padding:6px 10px;">Process Management (/api/v1/processes)</td></tr>
+      <tr><td>definitions</td><td>GET/POST</td><td>/definitions</td><td>List / Create BPMN definition</td></tr>
+      <tr><td></td><td>GET/PUT/DELETE</td><td>/definitions/:id</td><td>Get / Update / Delete</td></tr>
+      <tr><td></td><td>POST</td><td>/definitions/:id/publish</td><td>Activate (draft → active)</td></tr>
+      <tr><td></td><td>POST</td><td>/definitions/:id/unpublish</td><td>Deactivate (active → draft)</td></tr>
+      <tr><td></td><td>POST</td><td>/definitions/:id/archive</td><td>Archive</td></tr>
+      <tr><td>instances</td><td>GET/POST</td><td>/instances</td><td>List / Start instance</td></tr>
+      <tr><td></td><td>GET</td><td>/instances/:id</td><td>Get instance + BPMN XML + tasks</td></tr>
+      <tr><td></td><td>PATCH</td><td>/instances/:id/suspend|resume|terminate</td><td>Lifecycle control</td></tr>
+      <tr><td></td><td>PATCH</td><td>/instances/:id/variables</td><td>Merge JSONB variables</td></tr>
+      <tr><td>analytics</td><td>GET</td><td>/analytics/summary</td><td>KPI totals</td></tr>
+      <tr><td></td><td>GET</td><td>/analytics/by-definition</td><td>Instances grouped by process</td></tr>
+      <tr><td></td><td>GET</td><td>/analytics/over-time?days=30</td><td>Time-series data</td></tr>
+      <tr><td></td><td>GET</td><td>/analytics/bottlenecks</td><td>Queued task nodes</td></tr>
+      <tr><td></td><td>GET</td><td>/analytics/sla</td><td>SLA compliance per process</td></tr>
+      <tr><td></td><td>GET</td><td>/analytics/workload</td><td>Task count per assignee</td></tr>
+      <tr><td colspan="4" style="background:#0f3460;color:white;font-weight:600;padding:6px 10px;">Task Management (/api/v1/tasks)</td></tr>
+      <tr><td>tasks</td><td>GET</td><td>/tasks</td><td>List (filters: status, assigneeId, instanceId, caseId, overdue)</td></tr>
+      <tr><td></td><td>GET</td><td>/tasks/:id</td><td>Get task detail with variables</td></tr>
+      <tr><td></td><td>POST</td><td>/tasks/:id/claim</td><td>Assign to calling user</td></tr>
+      <tr><td></td><td>POST</td><td>/tasks/:id/complete</td><td>Complete with outcome + variables → advances process</td></tr>
+      <tr><td colspan="4" style="background:#0f3460;color:white;font-weight:600;padding:6px 10px;">Cases (/api/v1/cases)</td></tr>
+      <tr><td>cases</td><td>GET/POST</td><td>/cases</td><td>List (multi-filter) / Create</td></tr>
+      <tr><td></td><td>GET/PUT</td><td>/cases/:id</td><td>Get / Update</td></tr>
+      <tr><td></td><td>PATCH</td><td>/cases/:id/transition</td><td>State machine transition</td></tr>
+      <tr><td></td><td>PATCH</td><td>/cases/:id/assign</td><td>Assign user or team</td></tr>
+      <tr><td></td><td>GET/POST</td><td>/cases/:id/comments</td><td>Work notes</td></tr>
+      <tr><td colspan="4" style="background:#0f3460;color:white;font-weight:600;padding:6px 10px;">Approvals (/api/v1/approval)</td></tr>
+      <tr><td>policies</td><td>GET/POST</td><td>/approval/policies</td><td>List / Create policy</td></tr>
+      <tr><td>instances</td><td>GET/POST</td><td>/approval/instances</td><td>List / Create instance</td></tr>
+      <tr><td></td><td>POST</td><td>/approval/instances/:id/decide</td><td>Approve or reject step</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="content page-break">
+  <h2>4.3 Service Internals</h2>
+
+  <h3>BPM Orchestrator — Internal Structure</h3>
+  <div class="cols2">
+    <div class="card">
+      <div class="card-header">Modules</div>
+      <ul>
+        <li><strong>ProcessDefinitionModule</strong> — CRUD for BPMN definitions, publish/unpublish/archive</li>
+        <li><strong>ProcessInstanceModule</strong> — Instance lifecycle, BPMN execution engine, variable propagation</li>
+        <li><strong>TaskModule</strong> — Task CRUD, claim/complete/escalate, SLA scheduler</li>
+        <li><strong>AnalyticsModule</strong> — 6 aggregate endpoints for dashboard metrics</li>
+        <li><strong>AuditModule</strong> — Append-only audit log writes</li>
+        <li><strong>KafkaModule</strong> — Producer service shared across all modules</li>
+        <li><strong>DatabaseModule</strong> — pg.Pool wrapper with paginate() helper</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">SLA Scheduler</div>
+      <p style="margin-bottom:8px;">A <span class="inline-code">@nestjs/schedule</span> cron job runs every 5 minutes:</p>
+      <pre style="font-size:8pt;">@Cron('0 */5 * * * *')
+async checkSlaBreaches() {
+  SELECT tasks WHERE due_at &lt; NOW()
+    AND sla_breached = false
+    AND status NOT IN ('completed','cancelled')
+  → UPDATE sla_breached = true
+  → Kafka: bpm.task.sla_breach
+}</pre>
+      <p style="margin-top:8px;">The Case Service runs the same pattern for case SLA (every 5 minutes), producing <span class="inline-code">bpm.case.sla_breach</span>.</p>
+    </div>
+  </div>
+
+  <h3>Org Service — Manager Chain Resolution</h3>
+  <p>The approval engine requires resolving the organisational hierarchy to find approvers at different levels (L1 = direct manager, L2 = skip-level, etc.). This is implemented via a recursive query on the materialized path:</p>
+  <pre>-- Find manager N levels up from a user
+SELECT ou.manager_id
+FROM users u
+JOIN user_org_assignments uoa ON uoa.user_id = u.id AND uoa.is_primary = true
+JOIN org_units ou ON ou.id = uoa.org_unit_id
+WHERE u.id = $userId
+-- For L2+, traverse parent_id chain using the path column</pre>
+
+  <h3>Notification Service — Kafka Consumer</h3>
+  <p>The Notification Service subscribes to multiple Kafka topics and maps each event type to a notification template:</p>
+  <table>
+    <thead><tr><th>Kafka Topic</th><th>Template Slug</th><th>Recipient</th></tr></thead>
+    <tbody>
+      <tr><td>bpm.task.created</td><td>task-assigned</td><td>task.assignee_id</td></tr>
+      <tr><td>bpm.task.sla_breach</td><td>task-sla-breach</td><td>task.assignee_id + managers</td></tr>
+      <tr><td>bpm.process.started</td><td>process-started</td><td>initiator_id</td></tr>
+      <tr><td>bpm.approvals</td><td>approval-required</td><td>next approver in step</td></tr>
+      <tr><td>bpm.case.created</td><td>case-created</td><td>requester_id</td></tr>
+      <tr><td>bpm.case.sla_breach</td><td>case-sla-breach</td><td>assignee_id + assigned_team</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4.4 BPMN Execution Engine</h2>
+  <div class="box box-success">
+    <div class="box-title">✅ Custom Lightweight Engine</div>
+    The platform implements its own BPMN execution engine (bpmn-parser.ts) without relying on Flowable, Camunda, or any external BPM runtime. This keeps the deployment self-contained and eliminates JVM dependencies.
+  </div>
+
+  <h3>Supported BPMN Elements</h3>
+  <div class="cols3">
+    <div>
+      <h4>Start / End</h4>
+      <ul>
+        <li><span class="chip chip-green">startEvent</span></li>
+        <li><span class="chip chip-red">endEvent</span></li>
+        <li><span class="chip chip-blue">intermediateThrowEvent</span></li>
+        <li><span class="chip chip-blue">intermediateCatchEvent</span></li>
+        <li><span class="chip chip-blue">boundaryEvent</span></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Tasks</h4>
+      <ul>
+        <li><span class="chip chip-orange">userTask</span></li>
+        <li><span class="chip chip-purple">serviceTask</span></li>
+        <li><span class="chip chip-grey">scriptTask</span></li>
+        <li><span class="chip chip-grey">manualTask</span></li>
+        <li><span class="chip chip-grey">receiveTask</span></li>
+        <li><span class="chip chip-grey">sendTask</span></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Gateways</h4>
+      <ul>
+        <li><span class="chip chip-blue">exclusiveGateway</span></li>
+        <li><span class="chip chip-blue">parallelGateway</span></li>
+        <li><span class="chip chip-blue">inclusiveGateway</span></li>
+        <li><span class="chip chip-blue">eventBasedGateway</span></li>
+        <li><span class="chip chip-grey">subProcess</span></li>
+        <li><span class="chip chip-grey">callActivity</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Execution Algorithm</h3>
+  <pre>function advance(instanceId, fromNodeId, variables) {
+  el = getElementById(fromNodeId)
+
+  if el.type == 'endEvent':
+    UPDATE process_instances SET status='completed'
+    Kafka → bpm.process.completed
+
+  if el.type == 'exclusiveGateway':
+    chosen = outFlows.find(f => evaluateCondition(f.condition, variables))
+    advance(instanceId, chosen.target, variables)
+
+  if el.type == 'parallelGateway' or 'inclusiveGateway':
+    for each outFlow:
+      if target == userTask: createTask(...)
+      else: advance(instanceId, target, variables)
+
+  if el.type == 'userTask':
+    INSERT tasks(status='pending', assignee=el.assignee, ...)
+    Kafka → bpm.task.created
+
+  if el.type == 'serviceTask':
+    Kafka → bpm.service.task (Integration Hub picks it up)
+    advance(instanceId, nextNode, variables)    // auto-advance
+
+  if el.type == 'startEvent' or 'intermediateEvent':
+    advance(instanceId, firstOutFlow.target, variables)
+}</pre>
+
+  <h3>Condition Evaluation</h3>
+  <p>Gateway conditions use Flowable/Camunda expression language syntax, simplified to JavaScript evaluation:</p>
+  <pre>// Input: "${changeType == 'STANDARD' &amp;&amp; riskLevel != 'critical'}"
+// Replaces ${var} with JSON.stringify(variables[var])
+expr = condition
+  .replace(/\$\{([^}]+)\}/g, (_, v) => JSON.stringify(variables[v]))
+// Evaluates in a sandboxed Function context
+return new Function(`return (${expr})`)();</pre>
+</div>
+
+<div class="content page-break">
+  <h2>4.5 Event-Driven Architecture (Kafka)</h2>
+  <p>Kafka runs in <strong>KRaft mode</strong> (no Zookeeper dependency), with 3 partitions and replication factor 1 (single-broker for development). In production, a 3-broker cluster with RF=3 is recommended.</p>
+
+  <h3>Topic Inventory</h3>
+  <table>
+    <thead><tr><th>Topic</th><th>Publisher</th><th>Consumer(s)</th><th>Message Shape</th></tr></thead>
+    <tbody>
+      <tr><td><span class="inline-code">bpm.gateway.requests</span></td><td>API Gateway</td><td>—</td><td>requestId, method, url, statusCode, duration, tenantId</td></tr>
+      <tr><td><span class="inline-code">bpm.process.started</span></td><td>BPM Orchestrator</td><td>Notification Svc</td><td>tenantId, instanceId, definitionId, initiatorId, businessKey</td></tr>
+      <tr><td><span class="inline-code">bpm.process.completed</span></td><td>BPM Orchestrator</td><td>—</td><td>tenantId, instanceId</td></tr>
+      <tr><td><span class="inline-code">bpm.task.created</span></td><td>BPM Orchestrator</td><td>Notification Svc</td><td>tenantId, instanceId, nodeId, name, assignee</td></tr>
+      <tr><td><span class="inline-code">bpm.task.claimed</span></td><td>BPM Orchestrator</td><td>—</td><td>tenantId, taskId, userId, instanceId</td></tr>
+      <tr><td><span class="inline-code">bpm.task.completed</span></td><td>BPM Orchestrator</td><td>—</td><td>tenantId, taskId, instanceId, nodeId, outcome, variables</td></tr>
+      <tr><td><span class="inline-code">bpm.task.sla_breach</span></td><td>BPM Orchestrator</td><td>Notification Svc</td><td>tenantId, taskId, instanceId, assigneeId, taskName, dueAt</td></tr>
+      <tr><td><span class="inline-code">bpm.service.task</span></td><td>BPM Orchestrator</td><td>Integration Hub</td><td>tenantId, instanceId, nodeId, serviceType, config</td></tr>
+      <tr><td><span class="inline-code">bpm.approvals</span></td><td>Approval Service</td><td>Notification Svc</td><td>tenantId, instanceId, status, actorId</td></tr>
+      <tr><td><span class="inline-code">bpm.case.created</span></td><td>Case Service</td><td>Notification Svc, Integration Hub</td><td>tenantId, caseId, caseNumber, type, priority, requesterId</td></tr>
+      <tr><td><span class="inline-code">bpm.case.status_changed</span></td><td>Case Service</td><td>Notification Svc</td><td>tenantId, caseId, caseNumber, from, to, actorId</td></tr>
+      <tr><td><span class="inline-code">bpm.case.assigned</span></td><td>Case Service</td><td>Notification Svc</td><td>tenantId, caseId, assigneeId, teamId, actorId</td></tr>
+      <tr><td><span class="inline-code">bpm.case.sla_breach</span></td><td>Case Service</td><td>Notification Svc</td><td>tenantId, caseId, caseNumber, type, priority, assigneeId, dueAt</td></tr>
+      <tr><td><span class="inline-code">bpm.connectors.updated</span></td><td>Integration Hub</td><td>—</td><td>event, connectorId, tenantId</td></tr>
+      <tr><td><span class="inline-code">bpm.org.changed</span></td><td>Org Service</td><td>—</td><td>tenantId, org_unit_id, action</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4.6 Authentication &amp; Multi-Tenancy</h2>
+
+  <h3>Authentication Flow</h3>
+  <pre>1. User navigates to http://localhost:8080
+2. React SPA detects no session → Keycloak redirect (PKCE / S256)
+3. User authenticates at Keycloak :8443
+4. Keycloak issues JWT (RS256, 1h TTL) + Refresh Token (2h TTL)
+5. SPA stores tokens in memory (not localStorage — XSS mitigation)
+6. Every API call: Authorization: Bearer {access_token}
+7. API Gateway: passport-jwt extracts + verifies token via JWKS
+8. req.user = { sub, email, username, roles, tenantId }
+9. TenantInterceptor: req.tenantId = payload.tenantId || 'default-tenant'
+10. Downstream: X-Tenant-ID and X-User-ID headers injected
+11. Services: keycloak_id lookup resolves sub → internal UUID</pre>
+
+  <h3>Multi-Tenancy Pattern</h3>
+  <table>
+    <thead><tr><th>Aspect</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td>Tenant identification</td><td>JWT claim <span class="inline-code">tenant_id</span> or <span class="inline-code">tenantId</span>, fallback to default demo tenant</td></tr>
+      <tr><td>Data isolation</td><td>Every table has <span class="inline-code">tenant_id UUID NOT NULL</span>; all queries include <span class="inline-code">WHERE tenant_id=$1</span></td></tr>
+      <tr><td>Cross-tenant prevention</td><td>No service exposes a cross-tenant query endpoint; tenant_id always passed as first parameter</td></tr>
+      <tr><td>Tenant provisioning</td><td><span class="inline-code">POST /api/v1/tenants</span> creates tenant + default roles + admin user</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4.7 Frontend Architecture</h2>
+  <table>
+    <thead><tr><th>Route</th><th>Component</th><th>Key Features</th></tr></thead>
+    <tbody>
+      <tr><td>/dashboard</td><td>Dashboard</td><td>KPI cards, 14-day trend chart, process snapshot, SLA alert banner</td></tr>
+      <tr><td>/inbox</td><td>WorkInbox</td><td>4 tabs: My Tasks, Task Pool, Approvals, Notifications. Dynamic form rendering for task completion.</td></tr>
+      <tr><td>/cases</td><td>CaseList</td><td>Process-driven New Case dialog: select process → parse start event form fields → create case + start instance</td></tr>
+      <tr><td>/cases/:id</td><td>CaseDetail</td><td>Case header, ITIL transitions, comments, timeline, assignment</td></tr>
+      <tr><td>/processes/:id/studio</td><td>ProcessStudio</td><td>bpmn-js Modeler + 300px PropertiesPanel (assignee, candidateGroups, slaHours, serviceType, formFields). Import from Flowable XML with auto-layout.</td></tr>
+      <tr><td>/processes/instances/:id</td><td>ProcessInstanceDetail</td><td>3 tabs: Diagram (token highlighting), Tasks, Variables (inline editable)</td></tr>
+      <tr><td>/processes/analytics</td><td>ProcessAnalytics</td><td>Recharts: bar, pie, line charts + bottleneck table, SLA compliance, workload</td></tr>
+      <tr><td>/org</td><td>OrgStructure</td><td>Org tree, users table, roles &amp; positions management</td></tr>
+      <tr><td>/admin/connectors</td><td>ConnectorAdmin</td><td>Connector CRUD, type-specific config forms, test execution, execution logs</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 5 — DEPLOYMENT
+════════════════════════════════════════════════════ -->
+<div class="content page-break">
+  <h1 class="section">5. Deployment Architecture</h1>
+
+  <h2>5.1 Container Topology</h2>
+  <table>
+    <thead><tr><th>Container</th><th>Image</th><th>Ports</th><th>Volumes / Persistence</th></tr></thead>
+    <tbody>
+      <tr><td>bpm-postgres</td><td>postgres:15</td><td>5432</td><td>pgdata volume, migrations + seeds mounted at init</td></tr>
+      <tr><td>bpm-kafka</td><td>bitnami/kafka:latest</td><td>9092</td><td>kafka-data volume, KRaft mode (CLUSTER_ID auto-generated)</td></tr>
+      <tr><td>bpm-kafka-ui</td><td>provectuslabs/kafka-ui</td><td>8090</td><td>—</td></tr>
+      <tr><td>bpm-keycloak</td><td>quay.io/keycloak/keycloak:24</td><td>8443</td><td>realm-export.json mounted at import path</td></tr>
+      <tr><td>bpm-minio</td><td>minio/minio</td><td>9000, 9001</td><td>minio-data volume</td></tr>
+      <tr><td>bpm-prometheus</td><td>prom/prometheus</td><td>9090</td><td>prometheus.yml config</td></tr>
+      <tr><td>bpm-grafana</td><td>grafana/grafana</td><td>3300</td><td>grafana-data volume</td></tr>
+      <tr><td>bpm-api-gateway</td><td>infra-api-gateway</td><td>3000</td><td>—</td></tr>
+      <tr><td>bpm-org-service</td><td>infra-org-service</td><td>3001</td><td>—</td></tr>
+      <tr><td>bpm-approval-service</td><td>infra-approval-service</td><td>3002</td><td>—</td></tr>
+      <tr><td>bpm-orchestrator</td><td>infra-bpm-orchestrator</td><td>3003</td><td>—</td></tr>
+      <tr><td>bpm-case-service</td><td>infra-case-service</td><td>3004</td><td>—</td></tr>
+      <tr><td>bpm-integration-hub</td><td>infra-integration-hub</td><td>3005</td><td>—</td></tr>
+      <tr><td>bpm-notification-service</td><td>infra-notification-service</td><td>3006</td><td>—</td></tr>
+      <tr><td>bpm-frontend</td><td>infra-frontend (nginx:1.25)</td><td>8080</td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5.2 Network &amp; Dependencies</h2>
+  <p>All containers share a single Docker bridge network (<span class="inline-code">bpm-network</span>). Service discovery is by container name (DNS). The startup dependency chain ensures infrastructure services are healthy before application services start:</p>
+  <pre>postgres + kafka ──► api-gateway, org-service, approval-service,
+                      bpm-orchestrator, case-service, integration-hub,
+                      notification-service
+keycloak         ──► api-gateway (JWKS endpoint readiness)
+frontend         ──► api-gateway (healthcheck dependency)</pre>
+
+  <h2>5.3 Environment Configuration</h2>
+  <table>
+    <thead><tr><th>Variable</th><th>Value (Docker Compose)</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>DATABASE_URL</td><td>postgres://bpm:bpm_pass_2024@postgres:5432/bpm_db</td><td>pg.Pool connection string</td></tr>
+      <tr><td>KAFKA_BROKERS</td><td>kafka:9092</td><td>KafkaJS broker list</td></tr>
+      <tr><td>JWT_PUBLIC_KEY_URL</td><td>http://keycloak:8080/realms/bpm/…/certs</td><td>JWKS endpoint for token validation</td></tr>
+      <tr><td>MINIO_ENDPOINT</td><td>minio</td><td>Object storage host</td></tr>
+      <tr><td>NODE_ENV</td><td>production</td><td>NestJS production mode</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5.4 Startup Sequence</h2>
+  <pre>cd /opt/bpm/infra
+docker compose up -d --build
+
+# Health check sequence (~2 min):
+1. postgres     → accepts connections
+2. kafka        → controller elected (KRaft)
+3. keycloak     → realm "bpm" imported, /realms/bpm available
+4. minio        → bucket bpm-attachments created
+5. all services → DB connected, Kafka consumer subscribed
+6. api-gateway  → JWKS fetched from Keycloak
+7. frontend     → nginx serving on :8080</pre>
+
+  <h2>5.5 Production Considerations</h2>
+  <div class="cols2">
+    <div class="box box-warn">
+      <div class="box-title">⚠ Development vs Production Differences</div>
+      <ul>
+        <li>Replace single-broker Kafka with 3-broker cluster (RF=3)</li>
+        <li>Separate PostgreSQL per service (or use schemas + RLS)</li>
+        <li>TLS termination at load balancer (nginx upstream)</li>
+        <li>Keycloak clustered (Active/Active or Active/Standby)</li>
+        <li>MinIO distributed mode for HA</li>
+        <li>Secrets management via Vault or k8s Secrets (not env vars)</li>
+      </ul>
+    </div>
+    <div class="box box-info">
+      <div class="box-title">☁ Cloud Migration Path</div>
+      <ul>
+        <li>Each NestJS service → Kubernetes Deployment + HPA</li>
+        <li>PostgreSQL → RDS (managed) or Cloud SQL</li>
+        <li>Kafka → MSK (AWS) or Confluent Cloud</li>
+        <li>Keycloak → managed OIDC (Auth0, Okta) or EKS Keycloak</li>
+        <li>MinIO → S3 (AWS) or GCS</li>
+        <li>nginx → ALB / Cloud Load Balancer</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 6 — OPERATIONAL GUIDE
+════════════════════════════════════════════════════ -->
+<div class="content page-break">
+  <h1 class="section">6. Operational Guide</h1>
+
+  <h2>6.1 Access Points</h2>
+  <table>
+    <thead><tr><th>System</th><th>URL</th><th>Default Credentials</th></tr></thead>
+    <tbody>
+      <tr><td>Frontend Portal</td><td>http://localhost:8080</td><td>admin / Admin123! (or any demo user)</td></tr>
+      <tr><td>API Gateway (Swagger)</td><td>http://localhost:3000/api/docs</td><td>JWT required</td></tr>
+      <tr><td>Keycloak Admin</td><td>http://localhost:8443/admin</td><td>admin / Admin123!</td></tr>
+      <tr><td>Kafka UI</td><td>http://localhost:8090</td><td>—</td></tr>
+      <tr><td>MinIO Console</td><td>http://localhost:9001</td><td>minioadmin / minioadmin2024</td></tr>
+      <tr><td>Prometheus</td><td>http://localhost:9090</td><td>—</td></tr>
+      <tr><td>Grafana</td><td>http://localhost:3300</td><td>admin / admin</td></tr>
+    </tbody>
+  </table>
+
+  <h2>6.2 Demo Users</h2>
+  <table>
+    <thead><tr><th>Username</th><th>Password</th><th>Role</th><th>Org Unit</th><th>Typical Use</th></tr></thead>
+    <tbody>
+      <tr><td>admin</td><td>Admin123!</td><td>admin</td><td>Demo Corp (CEO)</td><td>All administration, configuration</td></tr>
+      <tr><td>requester1</td><td>Admin123!</td><td>requester</td><td>Infrastructure Team</td><td>Submit requests, raise incidents</td></tr>
+      <tr><td>manager1</td><td>Admin123!</td><td>manager</td><td>IT Department (Manager)</td><td>Approve requests, manage team</td></tr>
+      <tr><td>finance1</td><td>Admin123!</td><td>finance_controller</td><td>Finance Dept</td><td>Financial approval steps</td></tr>
+      <tr><td>cab1</td><td>Admin123!</td><td>cab_member</td><td>Finance Dept</td><td>Change Advisory Board reviews</td></tr>
+      <tr><td>engineer1</td><td>Admin123!</td><td>it_engineer</td><td>Infrastructure Team</td><td>Task execution, case resolution</td></tr>
+    </tbody>
+  </table>
+
+  <h2>6.3 Common Operations</h2>
+  <h3>Create a Process</h3>
+  <ol>
+    <li>Navigate to <strong>Processes → New Definition</strong></li>
+    <li>Open the BPMN Studio — drag tasks, gateways from palette</li>
+    <li>Click each user task → set assignee / candidateGroups / SLA hours / form fields in Properties Panel</li>
+    <li>Set sequence flow conditions on gateway outflows (e.g. <span class="inline-code">${outcome == 'approved'}</span>)</li>
+    <li>Save → <strong>Publish</strong> to make it startable</li>
+  </ol>
+
+  <h3>Raise a Case with Process</h3>
+  <ol>
+    <li>Navigate to <strong>Cases → New Case</strong></li>
+    <li>Select an active process from the dropdown — form fields from the start event render dynamically</li>
+    <li>Fill in title, priority, assigned team, and process-specific fields</li>
+    <li>Submit — case is created (INC/CHG/REQ number assigned) and process instance started</li>
+    <li>Case assignees receive in-app notifications</li>
+  </ol>
+
+  <h3>Work Inbox</h3>
+  <ol>
+    <li>Navigate to <strong>Inbox</strong></li>
+    <li><strong>Task Pool</strong> — unassigned tasks; click <em>Claim</em> to take ownership</li>
+    <li><strong>My Tasks</strong> — claimed tasks; click <em>Complete</em> to fill form + set outcome</li>
+    <li>Outcome drives exclusive gateway branching (e.g. <span class="inline-code">approved</span> vs <span class="inline-code">rejected</span>)</li>
+  </ol>
+
+  <h2>6.4 Key Rebuild Commands</h2>
+  <pre>cd /opt/bpm/infra
+
+# Full rebuild
+docker compose up -d --build
+
+# Rebuild a single service
+docker compose build &lt;service-name&gt;
+docker compose up -d &lt;service-name&gt;
+
+# View logs
+docker logs bpm-&lt;service&gt; -f --tail=50
+
+# DB console
+docker exec -it bpm-postgres psql -U bpm -d bpm_db
+
+# Reset all data (keeps images)
+docker compose down -v
+docker compose up -d --build</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 7 — APPENDIX
+════════════════════════════════════════════════════ -->
+<div class="content">
+  <h1 class="section">7. Appendix</h1>
+
+  <h2>Appendix A — ITIL Case State Machine</h2>
+  <pre>
+  ┌─────┐      ┌──────┐      ┌─────────────┐      ┌──────────┐
+  │ NEW │ ───► │ OPEN │ ───► │ IN_PROGRESS │ ───► │ RESOLVED │ ───► [ CLOSED ]
+  └─────┘      └──────┘      └──────┬──────┘      └──────────┘
+                  │                 │                    │
+                  ▼                 ▼                    ▼
+             [CANCELLED]       [PENDING]            [ OPEN ]   (re-open)
+                                   │
+                                   ▼
+                          [PENDING_APPROVAL]
+                           /              \
+                      [APPROVED]      [REJECTED]
+                          │                │
+                    [IN_PROGRESS]       [OPEN]
+  </pre>
+
+  <h2>Appendix B — Form Field Types</h2>
+  <table>
+    <thead><tr><th>BPMN Attribute / Element</th><th>Rendered Widget</th><th>Storage Format</th></tr></thead>
+    <tbody>
+      <tr><td>type="string"</td><td>Text input</td><td>String</td></tr>
+      <tr><td>type="textarea"</td><td>Multi-line textarea</td><td>String</td></tr>
+      <tr><td>type="long" / "integer" / "double"</td><td>Number input</td><td>Number</td></tr>
+      <tr><td>type="date"</td><td>Date picker</td><td>ISO 8601 string</td></tr>
+      <tr><td>type="boolean"</td><td>Checkbox</td><td>Boolean</td></tr>
+      <tr><td>type="enum"</td><td>Select dropdown</td><td>String (selected value ID)</td></tr>
+    </tbody>
+  </table>
+  <p>Form fields are stored as URL-encoded JSON on the <span class="inline-code">camunda:formFields</span> attribute (bpmn-js native) or parsed from <span class="inline-code">&lt;flowable:formProperty&gt;</span> children (Flowable XML import). The <span class="inline-code">_formSchema</span> key is injected into task variables at creation time for the Work Inbox to render dynamically.</p>
+
+  <h2>Appendix C — SLA Matrix</h2>
+  <table>
+    <thead><tr><th>Type \ Priority</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Incident</strong></td><td>1 hour</td><td>4 hours</td><td>8 hours</td><td>24 hours</td></tr>
+      <tr><td><strong>Problem</strong></td><td>4 hours</td><td>8 hours</td><td>24 hours</td><td>72 hours</td></tr>
+      <tr><td><strong>Change</strong></td><td>8 hours</td><td>24 hours</td><td>72 hours</td><td>168 hours</td></tr>
+      <tr><td><strong>Request</strong></td><td>4 hours</td><td>8 hours</td><td>24 hours</td><td>72 hours</td></tr>
+      <tr><td><strong>Alarm</strong></td><td>1 hour</td><td>2 hours</td><td>4 hours</td><td>8 hours</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Appendix D — Glossary</h2>
+  <table>
+    <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+    <tbody>
+      <tr><td>BPMN 2.0</td><td>Business Process Model and Notation — an industry-standard graphical notation for business processes</td></tr>
+      <tr><td>KRaft</td><td>Kafka Raft — Kafka's built-in consensus protocol replacing Zookeeper</td></tr>
+      <tr><td>OIDC</td><td>OpenID Connect — identity layer on top of OAuth2 for authentication</td></tr>
+      <tr><td>JWKS</td><td>JSON Web Key Set — endpoint exposing public keys for JWT signature verification</td></tr>
+      <tr><td>ITIL</td><td>IT Infrastructure Library — framework of best practices for IT service management</td></tr>
+      <tr><td>Materialized Path</td><td>A tree storage pattern storing the full ancestor path as a string for efficient hierarchy queries</td></tr>
+      <tr><td>Exclusive Gateway</td><td>XOR gateway — only one outgoing path is taken based on condition evaluation</td></tr>
+      <tr><td>Parallel Gateway</td><td>AND gateway — all outgoing paths execute simultaneously</td></tr>
+      <tr><td>SLA</td><td>Service Level Agreement — commitment to resolve/complete within a defined time period</td></tr>
+      <tr><td>Business Key</td><td>A human-readable identifier linking a process instance to a business record (e.g. case number)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="footer-note">
+    BPM Portal — HLD &amp; LLD Document &nbsp;|&nbsp; Version 1.0 &nbsp;|&nbsp; February 2026 &nbsp;|&nbsp;
+    Generated from live codebase at /opt/bpm
+  </div>
+</div>
+
+</body>
+</html>

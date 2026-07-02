@@ -1,0 +1,247 @@
+{
+  "realm": "bpm",
+  "displayName": "BPM Portal",
+  "loginTheme": "bpm-theme",
+  "accountTheme": "keycloak",
+  "adminTheme": "keycloak",
+  "emailTheme": "keycloak",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "accessTokenLifespan": 3600,
+  "ssoSessionMaxLifespan": 36000,
+  "ssoSessionIdleTimeout": 7200,
+  "refreshTokenMaxReuse": 0,
+  "bruteForceProtected": true,
+  "defaultSignatureAlgorithm": "RS256",
+  "clients": [
+    {
+      "clientId": "bpm-frontend",
+      "name": "BPM Frontend Portal",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "${KC_FRONTEND_URL}/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "bpm-backend",
+      "name": "BPM Backend Services",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "${KEYCLOAK_CLIENT_SECRET}",
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "protocol": "openid-connect"
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "System Administrator"
+      },
+      {
+        "name": "requester",
+        "description": "Can create and submit requests"
+      },
+      {
+        "name": "manager",
+        "description": "Can approve and manage cases"
+      },
+      {
+        "name": "finance_controller",
+        "description": "Finance approval authority"
+      },
+      {
+        "name": "cab_member",
+        "description": "Change Advisory Board member"
+      },
+      {
+        "name": "it_engineer",
+        "description": "IT operations engineer"
+      },
+      {
+        "name": "noc",
+        "description": "Telecom-ops role: noc"
+      },
+      {
+        "name": "field_engineer",
+        "description": "Telecom-ops role: field_engineer"
+      },
+      {
+        "name": "security",
+        "description": "Telecom-ops role: security"
+      },
+      {
+        "name": "logistics",
+        "description": "Telecom-ops role: logistics"
+      },
+      {
+        "name": "approver",
+        "description": "Telecom-ops role: approver"
+      },
+      {
+        "name": "process_designer",
+        "description": "Telecom-ops role: process_designer"
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@democorp.com",
+      "firstName": "Admin",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ],
+      "attributes": {
+        "tenant_id": [
+          "a0000000-0000-0000-0000-000000000001"
+        ]
+      }
+    },
+    {
+      "username": "requester1",
+      "email": "requester1@democorp.com",
+      "firstName": "Alice",
+      "lastName": "Johnson",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "requester"
+      ],
+      "attributes": {
+        "tenant_id": [
+          "a0000000-0000-0000-0000-000000000001"
+        ]
+      }
+    },
+    {
+      "username": "manager1",
+      "email": "manager1@democorp.com",
+      "firstName": "Bob",
+      "lastName": "Smith",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "manager"
+      ],
+      "attributes": {
+        "tenant_id": [
+          "a0000000-0000-0000-0000-000000000001"
+        ]
+      }
+    },
+    {
+      "username": "finance1",
+      "email": "finance1@democorp.com",
+      "firstName": "Carol",
+      "lastName": "Finance",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "finance_controller"
+      ],
+      "attributes": {
+        "tenant_id": [
+          "a0000000-0000-0000-0000-000000000001"
+        ]
+      }
+    },
+    {
+      "username": "cab1",
+      "email": "cab1@democorp.com",
+      "firstName": "Dave",
+      "lastName": "CAB",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "cab_member"
+      ],
+      "attributes": {
+        "tenant_id": [
+          "a0000000-0000-0000-0000-000000000001"
+        ]
+      }
+    },
+    {
+      "username": "engineer1",
+      "email": "engineer1@democorp.com",
+      "firstName": "Eve",
+      "lastName": "Engineer",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "it_engineer"
+      ],
+      "attributes": {
+        "tenant_id": [
+          "a0000000-0000-0000-0000-000000000001"
+        ]
+      }
+    }
+  ],
+  "scopeMappings": [],
+  "clientScopeMappings": {}
+}

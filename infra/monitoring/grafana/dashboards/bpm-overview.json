@@ -1,0 +1,67 @@
+{
+  "id": null,
+  "title": "BPM Portal Overview",
+  "tags": ["bpm"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "API Gateway - Request Rate",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [{ "expr": "rate(api_gateway_http_requests_total[5m])", "legendFormat": "req/s" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Active Process Instances",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [{ "expr": "bpm_orchestrator_process_instances_active_total", "legendFormat": "active" }],
+      "options": { "colorMode": "background" }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Open Cases",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [{ "expr": "case_service_open_cases_total", "legendFormat": "open" }],
+      "options": { "colorMode": "background" }
+    },
+    {
+      "id": 4, "type": "stat", "title": "SLA Breaches",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [{ "expr": "case_service_sla_breaches_total", "legendFormat": "breached" }],
+      "options": { "colorMode": "background", "thresholds": { "steps": [{"color":"green","value":0},{"color":"red","value":1}] } }
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "HTTP Request Rate by Service",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        { "expr": "rate(http_requests_total{job=~\".*-service\"}[5m])", "legendFormat": "{{job}}" }
+      ]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Response Latency P99",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        { "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))", "legendFormat": "p99 {{job}}" }
+      ]
+    },
+    {
+      "id": 7, "type": "gauge", "title": "Node.js Heap Usage - Org Service",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 12 },
+      "targets": [{ "expr": "org_service_nodejs_heap_size_used_bytes / org_service_nodejs_heap_size_total_bytes * 100", "legendFormat": "heap %" }],
+      "options": { "minValue": 0, "maxValue": 100 }
+    },
+    {
+      "id": 8, "type": "gauge", "title": "Node.js Heap Usage - Approval Service",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 12 },
+      "targets": [{ "expr": "approval_service_nodejs_heap_size_used_bytes / approval_service_nodejs_heap_size_total_bytes * 100", "legendFormat": "heap %" }],
+      "options": { "minValue": 0, "maxValue": 100 }
+    },
+    {
+      "id": 9, "type": "table", "title": "Service Health",
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 12 },
+      "targets": [{ "expr": "up{job=~\".*-service|api-gateway\"}", "legendFormat": "{{job}}", "instant": true }],
+      "options": { "sortBy": [{ "displayName": "Value", "desc": false }] }
+    }
+  ]
+}

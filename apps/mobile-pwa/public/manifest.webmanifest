@@ -1,0 +1,14 @@
+{
+  "name": "BPM Field",
+  "short_name": "BPM Field",
+  "description": "Mobile field app for the BPM Platform and Contractor Portal",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d47a1",
+  "theme_color": "#0d47a1",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

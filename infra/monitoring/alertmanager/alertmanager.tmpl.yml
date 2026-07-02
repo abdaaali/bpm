@@ -1,0 +1,30 @@
+# Alertmanager config TEMPLATE. The container renders @TOKENS@ from .env at start
+# and writes the SMTP password to a file — so no secret lives in this file.
+global:
+  smtp_smarthost: '@SMARTHOST@'
+  smtp_from: '@FROM@'
+  smtp_auth_username: '@USER@'
+  smtp_auth_password_file: /tmp/smtp_password
+  smtp_require_tls: true
+
+route:
+  receiver: email-ops
+  group_by: ['alertname', 'job']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers: ['severity="critical"']
+      receiver: email-ops
+      repeat_interval: 1h
+
+receivers:
+  - name: email-ops
+    email_configs:
+      - to: '@TO@'
+        send_resolved: true
+
+inhibit_rules:
+  - source_matchers: ['severity="critical"']
+    target_matchers: ['severity="warning"']
+    equal: ['job']

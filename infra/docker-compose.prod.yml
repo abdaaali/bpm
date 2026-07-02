@@ -1,0 +1,87 @@
+# Production overrides. Apply layered on top of the base compose:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Adds: resource limits (so one service can't starve the host), log rotation
+# (prevents disk fill), and UTC timezone (SLA math is UTC). Pre-built images are
+# pulled by tag (REGISTRY/IMAGE_TAG from the environment) — no build on the host.
+
+x-prod: &prod
+  restart: always
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+  environment:
+    TZ: UTC
+
+services:
+  postgres:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 1536M, cpus: "1.5" } } }
+  kafka:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 1024M, cpus: "1.0" } } }
+  keycloak:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 768M, cpus: "1.0" } } }
+    # Production mode: real `start` (not start-dev), Postgres-backed store (not
+    # the dev file DB), behind the TLS edge. Requires a `keycloak` database in
+    # Postgres (see PROD_DEPLOY.md) and KC_HOSTNAME set to the public auth URL.
+    command: start --optimized=false --import-realm
+    environment:
+      TZ: UTC
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${KC_DB_NAME:-keycloak}
+      KC_DB_USERNAME: ${KC_DB_USERNAME:-bpm}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      KC_FRONTEND_URL: ${KC_FRONTEND_URL}
+      KC_HOSTNAME: ${KC_HOSTNAME}
+      KC_PROXY: edge
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+
+  api-gateway:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 512M, cpus: "1.0" } } }
+  org-service:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 384M, cpus: "0.5" } } }
+  approval-service:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 384M, cpus: "0.5" } } }
+  bpm-orchestrator:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 512M, cpus: "0.75" } } }
+  case-service:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 512M, cpus: "0.75" } } }
+  integration-hub:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 512M, cpus: "0.75" } } }
+  notification-service:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 384M, cpus: "0.5" } } }
+  external-api:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 384M, cpus: "0.5" } } }
+  frontend:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 128M, cpus: "0.5" } } }
+  contractor-frontend:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 128M, cpus: "0.5" } } }
+
+  # Monitoring + ops
+  prometheus:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 512M, cpus: "0.5" } } }
+  grafana:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 256M, cpus: "0.5" } } }
+  alertmanager:
+    <<: *prod
+    deploy: { resources: { limits: { memory: 128M, cpus: "0.25" } } }
