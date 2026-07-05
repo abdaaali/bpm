@@ -1,5 +1,3 @@
-version: "3.9"
-
 networks:
   bpm-net:
     driver: bridge
@@ -108,7 +106,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks: [bpm-net]
-    ports: ["${BIND_ADDR:-0.0.0.0}:8090:8080"]
+    ports: ["${BIND_ADDR:-0.0.0.0}:8091:8080"]
     environment:
       KAFKA_CLUSTERS_0_NAME: bpm-cluster
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
