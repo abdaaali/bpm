@@ -99,7 +99,11 @@ export default function WorkOrderDetail() {
     setUploadLoading(true);
     try {
       const fd = new FormData(); fd.append('file', file);
-      await attachmentApi.upload(id!, fd, 'photo');
+      // Backend allows photo|document|report|signature|other (013_external_contractor.sql);
+      // infer from the actual file instead of hardcoding 'photo' for every upload,
+      // which mislabeled PDFs/docs (wrong icon + wrong Chip text in the list below).
+      const attachmentType = file.type.startsWith('image/') ? 'photo' : 'document';
+      await attachmentApi.upload(id!, fd, attachmentType);
       load();
     } catch (err: any) { setActionError(err.message); }
     finally { setUploadLoading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
@@ -345,7 +349,7 @@ export default function WorkOrderDetail() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setProgressOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleProgress} disabled={actionLoading}>Submit Update</Button>
+          <Button variant="contained" onClick={handleProgress} disabled={!progressNotes || actionLoading}>Submit Update</Button>
         </DialogActions>
       </Dialog>
 

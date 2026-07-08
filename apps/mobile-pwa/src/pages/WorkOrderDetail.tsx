@@ -15,11 +15,12 @@ export default function WorkOrderDetail() {
     catch (e: any) { setMsg(e?.response?.data?.message || 'Action failed'); } finally { setBusy(false); }
   };
   if (!w) return <Box sx={{ textAlign: 'center', mt: 6 }}><CircularProgress /></Box>;
-  const st = String(w.status || '').toLowerCase();
+  // Backend column is `assignment_status` (see work-orders.service.ts) -- there is no `status` field.
+  const st = String(w.assignment_status || '').toLowerCase();
   return (
     <Box sx={{ pb: 4 }}>
       <AppBar position="sticky" sx={{ bgcolor: '#2e7d32' }}><Toolbar variant="dense"><IconButton color="inherit" edge="start" onClick={() => nav(-1)}><ArrowBackIcon /></IconButton>
-        <Typography variant="h6">{w.work_order_number || 'Work Order'}</Typography></Toolbar></AppBar>
+        <Typography variant="h6">{w.work_order_ref || 'Work Order'}</Typography></Toolbar></AppBar>
       <Box sx={{ p: 2 }}>
         <Typography variant="h6" gutterBottom>{w.title || w.description}</Typography>
         <Chip label={st.replace(/_/g, ' ') || 'open'} size="small" sx={{ mb: 2 }} />
@@ -30,7 +31,8 @@ export default function WorkOrderDetail() {
         </CardContent></Card>
         <TextField fullWidth size="small" label="Progress note" value={note} onChange={(e) => setNote(e.target.value)} sx={{ mb: 1 }} multiline rows={2} />
         <Stack spacing={1}>
-          {['assigned', 'pending', 'new', ''].includes(st) && <Button fullWidth variant="outlined" disabled={busy} onClick={() => act('accept')}>Accept</Button>}
+          {/* Backend only allows accept() from 'pending' (work-orders.service.ts:124) */}
+          {st === 'pending' && <Button fullWidth variant="outlined" disabled={busy} onClick={() => act('accept')}>Accept</Button>}
           <Button fullWidth variant="outlined" disabled={busy || !note} onClick={() => act('progress', { note })}>Submit progress</Button>
           <Button fullWidth variant="contained" color="success" disabled={busy} onClick={() => act('complete', { notes: note || 'Completed from mobile' })}>Complete</Button>
         </Stack>

@@ -119,6 +119,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <IconButton color="inherit" edge="start" onClick={() => setOpen(!open)} sx={{ mr: 2 }}>
             <MenuIcon />
           </IconButton>
+          <Box component="img" src="/favicon.svg" alt="" aria-hidden="true" sx={{ width: 28, height: 28, mr: 1 }} />
           <Typography variant="h6" sx={{ fontWeight: 700, mr: 3 }}>
             BPM Portal
           </Typography>

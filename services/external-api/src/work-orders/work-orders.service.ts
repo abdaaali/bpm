@@ -159,12 +159,16 @@ export class WorkOrdersService {
       [uuidv4(), tenantId, id, userId, reason],
     );
 
-    // Add external-visible comment (use system user id from tenant)
+    // Add external-visible comment, attributed to the actual contractor who
+    // rejected it. author_id has no FK to `users` (dropped in migration 009 --
+    // external_users ids are a disjoint UUID space), and the comments query's
+    // `LEFT JOIN users` intentionally returns author_name=NULL for such rows so
+    // the contractor portal's chat UI renders it as "my own message" rather
+    // than mislabeling it "(Operator)".
     await this.db.query(
       `INSERT INTO case_comments (id, case_id, tenant_id, author_id, body, internal, created_at, updated_at)
-       SELECT $1,$2,$3,u.id,$4,false,NOW(),NOW()
-       FROM users u WHERE u.tenant_id=$3 LIMIT 1`,
-      [uuidv4(), wo.case_id, tenantId, `Contractor rejection: ${reason}`],
+       VALUES ($1,$2,$3,$4,$5,false,NOW(),NOW())`,
+      [uuidv4(), wo.case_id, tenantId, userId, `Contractor rejection: ${reason}`],
     );
 
     await this.audit(tenantId, userId, wo.assigned_user_name || userId, 'REJECT_WORK_ORDER', 'work_order_assignment', id, { reason }, ip);
@@ -231,12 +235,12 @@ export class WorkOrdersService {
       [uuidv4(), tenantId, id, userId, message],
     );
 
-    // Add as external-visible case comment
+    // Add as external-visible case comment, attributed to the actual contractor
+    // (see the identical note in reject() above).
     await this.db.query(
       `INSERT INTO case_comments (id, case_id, tenant_id, author_id, body, internal, created_at, updated_at)
-       SELECT $1,$2,$3,u.id,$4,false,NOW(),NOW()
-       FROM users u WHERE u.tenant_id=$3 LIMIT 1`,
-      [uuidv4(), wo.case_id, tenantId, `[Clarification Request] ${message}`],
+       VALUES ($1,$2,$3,$4,$5,false,NOW(),NOW())`,
+      [uuidv4(), wo.case_id, tenantId, userId, `[Clarification Request] ${message}`],
     );
 
     await this.audit(tenantId, userId, wo.assigned_user_name || userId, 'REQUEST_CLARIFICATION', 'work_order_assignment', id, { message }, ip);

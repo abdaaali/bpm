@@ -104,8 +104,8 @@ function WorkOrdersTab() {
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', px: 1 }}><Button size="small" startIcon={<RefreshIcon />} onClick={reload}>Refresh</Button></Box>
       {data.map((w) => (
         <ListItemButton key={w.id} divider onClick={() => nav(`/wo/${w.id}`)}>
-          <ListItemText primary={<b>{w.work_order_number || w.title || w.id}</b>}
-            secondary={<>{w.title || w.description}<br /><small>{String(w.status || '').replace(/_/g, ' ')}</small></>} />
+          <ListItemText primary={<b>{w.work_order_ref || w.title || w.id}</b>}
+            secondary={<>{w.title || w.description}<br /><small>{String(w.assignment_status || '').replace(/_/g, ' ')}</small></>} />
         </ListItemButton>
       ))}
       {!data.length && <Typography sx={{ p: 3, textAlign: 'center' }} color="text.secondary">No work orders.</Typography>}
