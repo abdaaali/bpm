@@ -404,7 +404,12 @@ export default function ProcessStudio() {
         // process (incl. the launch/seed ones authored with activiti:formProperty)
         // round-trips with its per-phase forms visible and editable in the panel.
         let normalized = convertFormProperties(def.bpmn_xml);
-        if (normalized.includes('camunda:formFields') && !normalized.includes('xmlns:camunda=')) {
+        // Declare xmlns:camunda unconditionally (not just when formFields already
+        // exist) — without it in the imported doc, moddle-xml silently drops any
+        // camunda:formFields attribute added later via PropertiesPanel's
+        // bo.$attrs write on export, so a process's *first* form field never
+        // survives Save even though it appears fine in the editor.
+        if (!normalized.includes('xmlns:camunda=')) {
           normalized = normalized.replace(/(<(?:[a-zA-Z]+:)?definitions\b)/, '$1 xmlns:camunda="http://activiti.org/bpmn"');
         }
         // Ensure a diagram layout exists (Flowable/seed exports have none).

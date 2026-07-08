@@ -56,7 +56,12 @@ function applyToBpmn(modeler: any, element: any, patch: {
   const moddle = modeler.get('moddle');
   const eventBus = modeler.get('eventBus');
   const bo = element.businessObject;
-  bo.$attrs = bo.$attrs || {};
+  // NOTE: do NOT reassign bo.$attrs (e.g. `bo.$attrs = bo.$attrs || {}`). moddle's
+  // Base constructor always defines $attrs as a non-writable-but-already-populated
+  // property (`Object.defineProperty(this, '$attrs', { value: {} })`) on every
+  // element, so it's never undefined — but reassigning the property itself throws
+  // in strict mode (this file bundles as an ES module), silently aborting every
+  // single property write below. Mutate its existing contents in place instead.
 
   if (patch.name !== undefined) {
     modeling.updateProperties(element, { name: patch.name || undefined });
@@ -171,7 +176,15 @@ function OptionsEditor({ value, onChange }: { value?: string; onChange: (s: stri
         </Box>
       ))}
       <Button size="small" startIcon={<AddIcon />} sx={{ mt: 0.5 }}
-        onClick={() => update([...rows, { value: '', label: '' }])}>
+        onClick={() => {
+          // A fully-blank {value:'',label:''} row is indistinguishable from
+          // "no option" and gets silently dropped by serializeOptions/parseOptions
+          // on the very next round-trip — clicking Add option would then appear
+          // to do nothing. Seed a non-empty default label (same pattern as
+          // FormFieldEditor.addField below) so the new row actually survives
+          // and is immediately visible to rename.
+          update([...rows, { value: '', label: `Option ${rows.length + 1}` }]);
+        }}>
         Add option
       </Button>
     </Box>
@@ -182,7 +195,12 @@ function OptionsEditor({ value, onChange }: { value?: string; onChange: (s: stri
 function FormFieldEditor({ fields, onChange, addLabel }: {
   fields: FormField[]; onChange: (f: FormField[]) => void; addLabel: string;
 }) {
-  const addField = () => onChange([...fields, { key: `field${fields.length + 1}`, label: `Field ${fields.length + 1}`, type: 'text', required: false }]);
+  // key must equal slugify(label) so the label's onChange below (which only
+  // re-derives the key while key === slugify(label)) keeps auto-syncing it —
+  // a literal `field${n}` here never matches slugify(`Field ${n}`) (missing
+  // underscore), silently freezing the key at "field1" no matter what label
+  // the user types.
+  const addField = () => onChange([...fields, { key: slugify(`Field ${fields.length + 1}`), label: `Field ${fields.length + 1}`, type: 'text', required: false }]);
   const updateField = (idx: number, patch: Partial<FormField>) => onChange(fields.map((f, i) => i === idx ? { ...f, ...patch } : f));
   const removeField = (idx: number) => onChange(fields.filter((_, i) => i !== idx));
   const uniqueKey = (base: string) => {
@@ -236,7 +254,7 @@ function FormFieldEditor({ fields, onChange, addLabel }: {
               />
               <FormControl size="small" fullWidth>
                 <InputLabel>Field type</InputLabel>
-                <Select label="Field type" value={f.type}
+                <Select label="Field type" value={f.type} data-testid="form-field-type-select"
                   onChange={e => updateField(idx, { type: e.target.value as FormField['type'] })}>
                   <MenuItem value="text">Text</MenuItem>
                   <MenuItem value="textarea">Textarea</MenuItem>

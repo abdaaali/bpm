@@ -199,7 +199,7 @@ export function DynField({ field, value, onChange }: {
     return (
       <FormControl fullWidth size="small" required={field.required}>
         <InputLabel>{field.label}</InputLabel>
-        <Select label={field.label} value={value} onChange={e => onChange(e.target.value)}>
+        <Select label={field.label} value={value} data-testid={`field-${field.key}`} onChange={e => onChange(e.target.value)}>
           {!field.required && <MenuItem value=""><em>— None —</em></MenuItem>}
           {opts.map(o => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
         </Select>

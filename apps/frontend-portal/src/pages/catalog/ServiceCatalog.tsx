@@ -21,8 +21,12 @@ import ComputerIcon from '@mui/icons-material/Computer';
 import StorageIcon from '@mui/icons-material/Storage';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ListAltIcon from '@mui/icons-material/ListAlt';
-import { processApi } from '../../api/client';
+import { processApi, caseApi } from '../../api/client';
 import { FALLBACK_FORMS } from '../process-studio/startFormHelpers';
+import { useAuth } from '../../auth/AuthContext';
+
+// Requests still awaiting completion — mirrors MyRequests.tsx's OPEN_STATUSES.
+const OPEN_CASE_STATUSES = ['new', 'open', 'in_progress', 'pending_approval', 'approved'];
 
 // ── Category / icon helpers ──────────────────────────────────────────────────
 
@@ -79,6 +83,7 @@ function getEstTime(category: string): string {
 
 export default function ServiceCatalog() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
 
   const { data, isLoading } = useQuery(
@@ -87,10 +92,12 @@ export default function ServiceCatalog() {
     { staleTime: 60_000 },
   );
 
+  // Count of the current user's own open requests (cases), matching MyRequests.tsx —
+  // NOT all active process instances platform-wide.
   const { data: myRequestsData } = useQuery(
-    'my-requests-count',
-    () => processApi.listInstances({ status: 'active' }, 1, 1),
-    { staleTime: 30_000 },
+    ['my-requests-count', user?.id],
+    () => caseApi.list({ requesterId: user?.id, status: OPEN_CASE_STATUSES.join(',') }, 1, 1),
+    { staleTime: 30_000, enabled: !!user },
   );
 
   const allDefs: any[] = (data?.data || []).filter((d: any) => d.status === 'active');
