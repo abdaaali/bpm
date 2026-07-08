@@ -4,7 +4,7 @@ import { DatabaseService } from '../database/database.service';
 import { KafkaProducerService } from '../kafka/kafka-producer.service';
 import { AuditService } from '../audit/audit.service';
 import { ProcessDefinitionService } from '../process-definition/process-definition.service';
-import { parseBpmn, getOutgoingFlows, getElementById, evaluateCondition, BpmnProcess } from '../engine/bpmn-parser';
+import { parseBpmn, getOutgoingFlows, getIncomingFlows, getElementById, evaluateCondition, BpmnProcess, BpmnFlow } from '../engine/bpmn-parser';
 
 @Injectable()
 export class ProcessInstanceService {
@@ -97,7 +97,14 @@ export class ProcessInstanceService {
     return this.findOne(tenantId, instance.id);
   }
 
-  async advance(tenantId: string, instanceId: string, fromNodeId: string, variables: any, bpmnProcess: any, actorId?: string) {
+  async advance(
+    tenantId: string, instanceId: string, fromNodeId: string, variables: any, bpmnProcess: any, actorId?: string,
+    // Identifies which fork cohort + activated flow this execution branch descends
+    // from, so a converging parallel/inclusive gateway can tell how many of its
+    // branches have actually arrived. null outside any fork (or once a join has
+    // fully resolved back to top level).
+    branchToken: { forkId: string; flowId: string } | null = null,
+  ) {
     const outFlows = getOutgoingFlows(bpmnProcess, fromNodeId);
     const fromEl = getElementById(bpmnProcess, fromNodeId);
 
@@ -113,6 +120,41 @@ export class ProcessInstanceService {
       return;
     }
 
+    // Join synchronization: a parallel/inclusive gateway with more than one
+    // incoming flow only proceeds once every branch spawned by its matching
+    // fork has arrived here — otherwise it re-fires its fork logic once per
+    // arriving branch, duplicating all downstream work.
+    if ((fromEl.type === 'parallelGateway' || fromEl.type === 'inclusiveGateway') && getIncomingFlows(bpmnProcess, fromNodeId).length > 1) {
+      if (!branchToken) {
+        // No tracked fork context (malformed BPMN, or a join reached via a path
+        // that doesn't propagate branch tokens, e.g. resuming from a parked
+        // approval — see delegateApproval). Fail open rather than deadlock.
+        this.logger.warn(`Instance ${instanceId} reached join ${fromNodeId} with no fork context — proceeding without synchronization`);
+      } else {
+        const token = branchToken;
+        const outcome = await this.db.withTransaction(async (client) => {
+          const forkRow = await client.query(`SELECT * FROM gateway_forks WHERE id=$1 FOR UPDATE`, [token.forkId]);
+          if (!forkRow.rows.length) return { proceed: false, next: null as { forkId: string; flowId: string } | null };
+          await client.query(
+            `INSERT INTO gateway_arrivals(fork_id, join_node_id, flow_id) VALUES($1,$2,$3)
+             ON CONFLICT (fork_id, join_node_id, flow_id) DO NOTHING`,
+            [token.forkId, fromNodeId, token.flowId],
+          );
+          const count = await client.query(
+            `SELECT COUNT(*)::int AS n FROM gateway_arrivals WHERE fork_id=$1 AND join_node_id=$2`,
+            [token.forkId, fromNodeId],
+          );
+          if (count.rows[0].n < forkRow.rows[0].expected_count) return { proceed: false, next: null };
+          const parentForkId = forkRow.rows[0].parent_fork_id;
+          const parentFlowId = forkRow.rows[0].parent_flow_id;
+          await client.query(`DELETE FROM gateway_forks WHERE id=$1`, [token.forkId]); // cascades gateway_arrivals
+          return { proceed: true, next: parentForkId ? { forkId: parentForkId, flowId: parentFlowId } : null };
+        });
+        if (!outcome.proceed) return; // still waiting on sibling branches, or a concurrent branch already won this join
+        branchToken = outcome.next; // resume under the parent fork's context (or null if this was top-level)
+      }
+    }
+
     if (fromEl.type === 'exclusiveGateway') {
       // Take first matching condition flow
       const chosen = outFlows.find(f => f.condition ? evaluateCondition(f.condition, variables) : true);
@@ -122,19 +164,43 @@ export class ProcessInstanceService {
           `UPDATE process_instances SET current_node_id=$1, updated_at=NOW() WHERE id=$2`,
           [chosen.target, instanceId],
         );
-        if (nextEl) await this.advance(tenantId, instanceId, chosen.target, variables, bpmnProcess, actorId);
+        if (nextEl) await this.advance(tenantId, instanceId, chosen.target, variables, bpmnProcess, actorId, branchToken);
       }
       return;
     }
 
     if (fromEl.type === 'parallelGateway' || fromEl.type === 'inclusiveGateway') {
-      // Create tasks/tokens for all outgoing flows
-      for (const flow of outFlows) {
+      // Parallel gateways always take every outgoing flow; inclusive gateways
+      // only take flows whose condition holds (falling back to unconditional
+      // flows, then to the first flow, so a malformed diagram never dead-ends).
+      const activated = fromEl.type === 'inclusiveGateway' ? this.activateInclusiveFlows(outFlows, variables) : outFlows;
+
+      if (activated.length <= 1) {
+        // Not a real fork — the single active branch continues under the same token.
+        for (const flow of activated) {
+          const nextEl = getElementById(bpmnProcess, flow.target);
+          if (nextEl && nextEl.type === 'userTask') {
+            await this.createTask(tenantId, instanceId, nextEl, variables, actorId, branchToken);
+          } else if (nextEl) {
+            await this.advance(tenantId, instanceId, flow.target, variables, bpmnProcess, actorId, branchToken);
+          }
+        }
+        return;
+      }
+
+      const forkRow = await this.db.query(
+        `INSERT INTO gateway_forks(tenant_id, instance_id, fork_node_id, expected_count, parent_fork_id, parent_flow_id)
+         VALUES($1,$2,$3,$4,$5,$6) RETURNING id`,
+        [tenantId, instanceId, fromNodeId, activated.length, branchToken?.forkId ?? null, branchToken?.flowId ?? null],
+      );
+      const forkId = forkRow.rows[0].id;
+      for (const flow of activated) {
         const nextEl = getElementById(bpmnProcess, flow.target);
+        const childToken = { forkId, flowId: flow.id };
         if (nextEl && nextEl.type === 'userTask') {
-          await this.createTask(tenantId, instanceId, nextEl, variables, actorId);
+          await this.createTask(tenantId, instanceId, nextEl, variables, actorId, childToken);
         } else if (nextEl) {
-          await this.advance(tenantId, instanceId, flow.target, variables, bpmnProcess, actorId);
+          await this.advance(tenantId, instanceId, flow.target, variables, bpmnProcess, actorId, childToken);
         }
       }
       return;
@@ -145,7 +211,7 @@ export class ProcessInstanceService {
         const nextEl = getElementById(bpmnProcess, flow.target);
         if (nextEl) {
           await this.db.query(`UPDATE process_instances SET current_node_id=$1, updated_at=NOW() WHERE id=$2`, [flow.target, instanceId]);
-          await this.advance(tenantId, instanceId, flow.target, variables, bpmnProcess, actorId);
+          await this.advance(tenantId, instanceId, flow.target, variables, bpmnProcess, actorId, branchToken);
         }
       }
       return;
@@ -158,7 +224,7 @@ export class ProcessInstanceService {
         const parked = await this.delegateApproval(tenantId, instanceId, fromEl, variables, actorId);
         if (parked) return;
       }
-      await this.createTask(tenantId, instanceId, fromEl, variables, actorId);
+      await this.createTask(tenantId, instanceId, fromEl, variables, actorId, branchToken);
       return;
     }
 
@@ -167,7 +233,7 @@ export class ProcessInstanceService {
       await this.kafka.produce('bpm.service.task', { tenantId, instanceId, nodeId: fromEl.id, serviceType: fromEl.serviceType, config: fromEl.config });
       for (const flow of outFlows) {
         await this.db.query(`UPDATE process_instances SET current_node_id=$1, updated_at=NOW() WHERE id=$2`, [flow.target, instanceId]);
-        await this.advance(tenantId, instanceId, flow.target, variables, bpmnProcess, actorId);
+        await this.advance(tenantId, instanceId, flow.target, variables, bpmnProcess, actorId, branchToken);
       }
       return;
     }
@@ -175,11 +241,19 @@ export class ProcessInstanceService {
     // Default: move to first outgoing flow target
     if (outFlows.length > 0) {
       await this.db.query(`UPDATE process_instances SET current_node_id=$1, updated_at=NOW() WHERE id=$2`, [outFlows[0].target, instanceId]);
-      await this.advance(tenantId, instanceId, outFlows[0].target, variables, bpmnProcess, actorId);
+      await this.advance(tenantId, instanceId, outFlows[0].target, variables, bpmnProcess, actorId, branchToken);
     }
   }
 
-  private async createTask(tenantId: string, instanceId: string, el: any, variables: any, actorId?: string) {
+  /** Inclusive-gateway branch activation: flows whose condition holds, else unconditional flows, else the first flow. */
+  private activateInclusiveFlows(outFlows: BpmnFlow[], variables: any): BpmnFlow[] {
+    const matched = outFlows.filter(f => f.condition && evaluateCondition(f.condition, variables));
+    if (matched.length) return matched;
+    const unconditional = outFlows.filter(f => !f.condition);
+    return unconditional.length ? unconditional : outFlows.slice(0, 1);
+  }
+
+  private async createTask(tenantId: string, instanceId: string, el: any, variables: any, actorId?: string, branchToken: { forkId: string; flowId: string } | null = null) {
     const dueAt = el.slaHours ? new Date(Date.now() + el.slaHours * 3600 * 1000).toISOString() : null;
     // Merge form schema into task variables so WorkInbox can render dynamic form
     const taskVars = { ...variables };
@@ -196,11 +270,12 @@ export class ProcessInstanceService {
     // automatic individual assignment.
     const assigneeId = el.assignee || null;
     await this.db.query(
-      `INSERT INTO tasks(tenant_id,process_instance_id,node_id,name,type,status,assignee_id,candidate_groups,form_key,variables,due_at,case_id)
-       VALUES($1,$2,$3,$4,COALESCE($5,'userTask'),'pending',$6,$7,$8,$9,$10,(SELECT case_id FROM process_instances WHERE id=$2))`,
+      `INSERT INTO tasks(tenant_id,process_instance_id,node_id,name,type,status,assignee_id,candidate_groups,form_key,variables,due_at,case_id,fork_id,flow_id)
+       VALUES($1,$2,$3,$4,COALESCE($5,'userTask'),'pending',$6,$7,$8,$9,$10,(SELECT case_id FROM process_instances WHERE id=$2),$11,$12)`,
       [tenantId, instanceId, el.id, el.name || el.id, el.type, assigneeId,
         candidateList ? JSON.stringify(candidateList) : null,
-        el.formKey || null, JSON.stringify(taskVars), dueAt],
+        el.formKey || null, JSON.stringify(taskVars), dueAt,
+        branchToken?.forkId ?? null, branchToken?.flowId ?? null],
     );
     await this.kafka.produce('bpm.task.created', { tenantId, instanceId, nodeId: el.id, name: el.name, assignee: assigneeId });
     // C1: work has started — move a linked case new/open → in_progress
@@ -302,12 +377,13 @@ export class ProcessInstanceService {
    * Merges the task output variables into the instance, then advances the
    * process from the completed node's outgoing flows.
    */
-  async onTaskCompleted(tenantId: string, instanceId: string, nodeId: string, vars: any, actorId?: string) {
+  async onTaskCompleted(tenantId: string, instanceId: string, nodeId: string, vars: any, actorId?: string, forkId?: string | null, flowId?: string | null) {
     const instance = await this.findOne(tenantId, instanceId);
     if (instance.status !== 'active') return; // don't advance suspended/terminated instances
     if (!instance.bpmn_xml) return;
 
     const bpmnProcess: BpmnProcess = parseBpmn(instance.bpmn_xml);
+    const branchToken = forkId && flowId ? { forkId, flowId } : null;
 
     // Persist merged variables to instance so gateway conditions have full context
     await this.db.query(
@@ -322,7 +398,7 @@ export class ProcessInstanceService {
         `UPDATE process_instances SET current_node_id=$1, updated_at=NOW() WHERE id=$2`,
         [flow.target, instanceId],
       );
-      await this.advance(tenantId, instanceId, flow.target, vars, bpmnProcess, actorId);
+      await this.advance(tenantId, instanceId, flow.target, vars, bpmnProcess, actorId, branchToken);
     }
   }
 

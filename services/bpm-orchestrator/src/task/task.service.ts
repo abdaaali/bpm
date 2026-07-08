@@ -104,7 +104,7 @@ export class TaskService {
 
     // Advance the process to the next node(s) — only the winning completer reaches here.
     if (task.process_instance_id) {
-      await this.instanceSvc.onTaskCompleted(tenantId, task.process_instance_id, task.node_id, mergedVars, userId);
+      await this.instanceSvc.onTaskCompleted(tenantId, task.process_instance_id, task.node_id, mergedVars, userId, task.fork_id, task.flow_id);
     }
     return completed;
   }

@@ -322,6 +322,11 @@ export function getOutgoingFlows(process: BpmnProcess, elementId: string): BpmnF
   return process.flows.filter(f => f.source === elementId);
 }
 
+/** Get incoming flows to a given element */
+export function getIncomingFlows(process: BpmnProcess, elementId: string): BpmnFlow[] {
+  return process.flows.filter(f => f.target === elementId);
+}
+
 /** Get element by ID */
 export function getElementById(process: BpmnProcess, id: string): BpmnElement | undefined {
   return process.elements.find(e => e.id === id);
