@@ -1,245 +1,157 @@
 # BPM Portal — End-to-End Business Process Management
 
-A production-ready, Dockerized BPM Portal with multi-tenant org structure, configurable approval matrix, ITIL case management, no-code BPMN process studio, integration hub, and real-time notifications.
+A Dockerized BPM/ITIL platform: multi-tenant org structure, configurable approval matrix, case
+management, a no-code BPMN process studio (Process Studio), a service catalog with dynamic request
+forms, alarm ingestion, and a contractor portal + mobile PWA.
+
+This file covers day-1 orientation: getting the stack running locally, logging in, and testing the
+core flows. For the full architecture (every app/service, DB schema, Kafka topics, CI) see
+[STRUCTURE.md](STRUCTURE.md).
+
+## Prerequisites
+
+- Docker Desktop (with Docker Compose v2)
+- Node.js 20+ and npm (only needed if you're building/running an app outside Docker, or running the
+  Playwright suite)
 
 ## Quick Start
 
 ```bash
-cd /opt/bpm/infra
+cd infra
+cp .env.example .env   # then fill in real values — see comments in the file
 docker compose up -d --build
 ```
 
-Wait ~2 minutes for all services to be healthy, then open:
+First build takes several minutes (11 service images). Watch health status with:
+
+```bash
+docker compose ps
+```
+
+Once `frontend`, `api-gateway`, and the backend services report `healthy`, open:
 
 | URL | Service |
-|-----|---------|
-| http://localhost:8080 | **Frontend Portal** (React + MUI) |
-| http://localhost:3000 | API Gateway |
-| http://localhost:8443 | Keycloak Admin Console |
-| http://localhost:8090 | Kafka UI |
-| http://localhost:9000 | MinIO Console |
+|---|---|
+| http://localhost:8080 | **Frontend Portal** (React + MUI) — main app |
+| http://localhost:8081 | Contractor Portal |
+| http://localhost:8082 | Mobile PWA |
+| http://localhost:3000 | API Gateway (Swagger at `/api/docs`) |
+| http://localhost:8443 | Keycloak (auth) |
+| http://localhost:8091 | Kafka UI |
+| http://localhost:9000 / :9001 | MinIO (API / Console) |
 | http://localhost:9090 | Prometheus |
-| http://localhost:3300 | Grafana (admin/admin) |
+| http://localhost:3300 | Grafana |
+
+For local dev only, `infra/docker-compose.dev.yml` adds a direct port for `external-api` (3007) so
+the contractor API can be hit without going through the contractor-frontend proxy:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
 
 ## Demo Users
 
-All users share password: **Admin123!**
+Seeded via `infra/keycloak/realm-export.json` (Keycloak) + `infra/db/seeds*/*.sql` (Postgres). All
+share the password **`Admin123!`**.
 
-| Username | Email | Role |
-|----------|-------|------|
-| `admin` | admin@democorp.com | Platform Admin |
-| `requester1` | requester1@democorp.com | Requester |
-| `manager1` | manager1@democorp.com | Manager / Approver |
-| `finance1` | finance1@democorp.com | Finance Controller |
-| `cab1` | cab1@democorp.com | CAB Member |
-| `engineer1` | engineer1@democorp.com | IT Engineer |
+| Username | Role | Notes |
+|---|---|---|
+| `admin` | Platform Admin | Full permissions (`*`) — needed for Process Studio design + publish |
+| `requester1` | Requester | Can submit and track requests |
+| `manager1` | Manager / Approver | |
+| `finance1` | Finance Controller | |
+| `cab1` | CAB Member | |
+| `engineer1` | IT Engineer | |
 
-## Architecture
+> **Fresh-environment note:** each Keycloak user's internal ID must match the `keycloak_id` seeded
+> in the `users` Postgres table (e.g. `admin` → `admin-keycloak-id`) — the realm import now pins
+> these explicitly. If you ever reset only the Keycloak volume but keep the Postgres volume (or vice
+> versa), the two can drift apart again; symptom is a `500 Internal server error` (`null value in
+> column "requester_id"`) on request/case submission. Fix: re-align `users.keycloak_id` in Postgres
+> to the real Keycloak user ID, or reset both volumes together (`docker compose down -v`).
 
-```
-                ┌─────────────────────────────────────────────┐
-                │            React Frontend (Nginx:80)        │
-                └──────────────────┬──────────────────────────┘
-                                   │ HTTPS/JWT (Keycloak)
-                ┌──────────────────▼──────────────────────────┐
-                │           API Gateway (:3000)                │
-                │  JWT validation · Tenant injection · Proxy  │
-                └──┬──────┬──────┬──────┬──────┬──────┬──────┘
-                   │      │      │      │      │      │
-            ┌──────▼┐ ┌───▼──┐ ┌▼────┐ ┌▼───┐ ┌▼────┐ ┌▼──────┐
-            │ Org   │ │Approv│ │BPM  │ │Case│ │Integ│ │Notif  │
-            │:3001  │ │:3002 │ │:3003│ │:3004│ │:3005│ │:3006  │
-            └───┬───┘ └───┬──┘ └─┬───┘ └──┬─┘ └──┬──┘ └──┬────┘
-                │         │      │        │       │       │
-                └─────────┴──────┴────────┴───────┴───────┘
-                                   │ All services publish/subscribe
-                           ┌───────▼────────┐
-                           │   Kafka KRaft  │
-                           │  (Bitnami:9092)│
-                           └───────┬────────┘
-                                   │
-            ┌──────────────────────┼───────────────────────┐
-            │                      │                       │
-     ┌──────▼──────┐      ┌────────▼──────┐      ┌────────▼──────┐
-     │ PostgreSQL  │      │     MinIO     │      │  Keycloak     │
-     │   :5432     │      │   :9000/9001  │      │    :8443      │
-     └─────────────┘      └───────────────┘      └───────────────┘
-```
+## Manual Test Checklist (core flows)
 
-## Services
+1. Open http://localhost:8080 → redirects to Keycloak → log in as `admin`.
+2. Land on Home/Dashboard.
+3. Open **Process Studio** (sidebar → Applications, or a process from **Processes**).
+4. Open an existing process, or create a new one.
+5. Click the **Start Event** on the canvas.
+6. Under "Start Form Fields", click **Add start form field**, set a label/type/options, mark
+   required.
+7. Click **Save** — expect a "Saved!" toast.
+8. Reload the page, re-click the Start Event — the field should still be there.
+9. Click **Publish**.
+10. Open **Service Catalog**, find the process, click **Request**.
+11. Confirm your new field renders on the New Request form.
+12. Leave the required field empty — **Submit Request** should be disabled. Fill it — it enables.
+13. Submit — expect a confirmation screen with a case/request number.
+14. Open **My Work → My Requests** — the new request should appear.
 
-### API Gateway (:3000)
-- JWT validation via Keycloak JWKS
-- Tenant ID injection into every downstream request
-- Request logging to Kafka `bpm.gateway.requests`
-- Dashboard aggregation (parallel calls to 3 services)
+## Automated Browser Tests (Playwright)
 
-### Org Service (:3001)
-- Multi-tenant org hierarchy: Company → Division → Department → Section → Team
-- Materialized path for efficient tree queries
-- Manager chain resolution (used by approval resolver)
-- Users, Positions, Roles management
+An end-to-end Playwright suite lives in [`e2e/`](e2e), covering login, dashboard, Process Studio,
+BPMN save/load/publish (including a regression test for an existing process authored without any
+`camunda:` namespace — the exact scenario that used to silently drop new form fields), Service
+Catalog, New Request, validation, and My Requests.
 
-### Approval Service (:3002)
-- **Core engine**: resolves approver chains from org hierarchy + roles + delegations
-- Policy types: `hierarchy`, `role`, `specific_user`, `org_unit_manager`, `parallel`
-- Conditional steps: evaluate `>=`, `<=`, `>`, `<`, `=`, `!=`, `in`, `not_in`
-- Delegation substitution (date-range based)
-- Immutable decision snapshots in JSONB
-
-### BPM Orchestrator (:3003)
-- Process definitions with BPMN 2.0 XML storage
-- Lightweight BPMN parser (no Flowable/Camunda dependency)
-- Token-based process execution: startEvent → userTask → gateway → endEvent
-- Exclusive, parallel, and inclusive gateway support
-- Task SLA breach detection (5-minute polling scheduler)
-
-### Case Service (:3004)
-- ITIL case types: Incident, Problem, Change, Request, Alarm
-- Auto-generated case numbers: INC1001, CHG1001, etc.
-- State machine with valid transition enforcement
-- SLA calculation by type × priority (e.g. Critical Incident = 1h)
-- MinIO-backed file attachments
-- Work notes / comments
-
-### Integration Hub (:3005)
-- Connector types: REST, Webhook, Kafka Producer, Cron
-- Variable interpolation in URL templates: `{{caseId}}`
-- Bearer/Basic auth support for REST connectors
-- Cron scheduling with `every_Xm` / `every_Xh` patterns
-- Full execution log with request/response payloads
-- Kafka consumer: triggers webhooks on `bpm.case.created` events
-
-### Notification Service (:3006)
-- Handlebars template rendering
-- In-app notifications + email (SMTP optional)
-- Kafka consumer for all `bpm.*` events
-- Unread count API for badge display
-- Mark single/all as read
-
-## Database Schema
-
-| Migration | Contents |
-|-----------|----------|
-| 001 | Tenants, Org Units, Positions, Roles, Users, Assignments |
-| 002 | Approval Policies, Instances, Decisions, Delegations |
-| 003 | Process Definitions, Process Instances, Tasks |
-| 004 | Cases, Case Sequences, Comments, Attachments |
-| 005 | Connectors, Connector Logs, Notification Templates, Notifications |
-| 006 | Audit Log (immutable — SQL rules prevent UPDATE/DELETE) |
-
-## Kafka Topics
-
-| Topic | Publisher | Consumers |
-|-------|-----------|-----------|
-| `bpm.gateway.requests` | API Gateway | — |
-| `bpm.org.changed` | Org Service | — |
-| `bpm.process.started` | BPM Orchestrator | Notification |
-| `bpm.process.completed` | BPM Orchestrator | — |
-| `bpm.task.created` | BPM Orchestrator | Notification |
-| `bpm.task.sla_breach` | BPM Orchestrator | Notification |
-| `bpm.task.claimed` | BPM Orchestrator | — |
-| `bpm.task.completed` | BPM Orchestrator | — |
-| `bpm.approvals` | Approval Service | Notification |
-| `bpm.case.created` | Case Service | Notification, Integration Hub |
-| `bpm.case.sla_breach` | Case Service | Notification |
-| `bpm.case.assigned` | Case Service | Notification |
-| `bpm.service.task` | BPM Orchestrator | Integration Hub |
-| `bpm.connectors.updated` | Integration Hub | — |
-
-## Approval Matrix
-
-Policies define ordered steps. Each step has:
-
-```json
-{
-  "order": 1,
-  "name": "Line Manager Approval",
-  "type": "hierarchy",
-  "approver_level": 1,
-  "condition": {
-    "field": "amount",
-    "operator": ">=",
-    "value": 500
-  },
-  "sla_hours": 24,
-  "escalation_hours": 48
-}
+```bash
+cd e2e
+npm install
+npx playwright install chromium
+npx playwright test           # stack must already be running (see Quick Start)
+npx playwright show-report    # view results after a run
 ```
 
-**Step types:**
-- `hierarchy` — resolves to manager N levels up from requester
-- `role` — any user with the specified role
-- `specific_user` — a named user UUID
-- `org_unit_manager` — manager of a specific org unit
-
-## Frontend Pages
-
-| Page | Path | Description |
-|------|------|-------------|
-| Dashboard | `/dashboard` | Stats, charts, SLA breach alerts |
-| Work Inbox | `/inbox` | My tasks, task pool, pending approvals, notifications |
-| Cases | `/cases` | ITIL case list with filters |
-| Case Detail | `/cases/:id` | Full case view, status transitions, work notes |
-| Create Case | `/cases/new` | New incident/change/request/etc |
-| Process Studio | `/processes` | BPMN process definitions list |
-| BPMN Editor | `/processes/:id/studio` | bpmn-js visual editor |
-| Approval Policies | `/approvals/policies` | Policy list & viewer |
-| Approval Instances | `/approvals/instances` | Pending approvals with decide button |
-| Org Structure | `/org` | Org tree, users, roles, positions |
-| Audit Log | `/audit` | Immutable audit trail with filters |
-| Connectors | `/admin/connectors` | REST/Webhook/Kafka/Cron connector management |
-
-## Adding a New Process Template
-
-1. Navigate to **Process Studio** → **New Process**
-2. Enter a name and slug (e.g. `employee_onboarding`)
-3. The bpmn-js editor opens with a starter template
-4. Design your process flow (startEvent → userTasks → gateways → endEvent)
-5. Click **Save** then **Publish** to make it active
-6. Start instances via `POST /api/v1/processes/instances` with `{ "slug": "employee_onboarding" }`
-
-## Security Model
-
-- All requests authenticated via Keycloak JWT (JWKS validation)
-- `X-Tenant-ID` header injected by API Gateway from JWT claim
-- Every downstream service reads tenant from header (never from user input)
-- Parameterized SQL queries throughout (no string interpolation)
-- Audit log is append-only (PostgreSQL RULE prevents UPDATE/DELETE)
-- MinIO presigned URLs expire in 1 hour
+Credentials are read at runtime from `infra/keycloak/realm-export.json` (no secrets hardcoded in
+test source) via `E2E_USERNAME`/`E2E_PASSWORD` env vars, defaulting to `admin`. Auth uses a real
+Keycloak UI login once (`tests/auth.setup.ts`), cached via Playwright `storageState` for the rest of
+the suite; `login.spec.ts` runs the real login flow standalone to verify it directly.
 
 ## Environment Variables
 
-Key variables set in `docker-compose.yml`:
+Real values live in `infra/.env` (gitignored) — copy from `infra/.env.example` and fill them in.
+Notable ones:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | postgres://... | PostgreSQL connection string |
-| `KAFKA_BROKERS` | kafka:9092 | Kafka bootstrap servers |
-| `KEYCLOAK_URL` | http://keycloak:8080 | Keycloak base URL |
-| `KEYCLOAK_REALM` | bpm | Realm name |
-| `KEYCLOAK_CLIENT_ID` | bpm-backend | Backend client |
-| `KEYCLOAK_CLIENT_SECRET` | bpm-backend-secret-2024 | Backend client secret |
-| `MINIO_ENDPOINT` | minio | MinIO hostname |
-| `MINIO_ACCESS_KEY` | minioadmin | MinIO access key |
-| `MINIO_SECRET_KEY` | minioadmin | MinIO secret key |
-| `SMTP_HOST` | (unset) | Optional: SMTP for email notifications |
+| Variable | Purpose |
+|---|---|
+| `POSTGRES_PASSWORD`, `KEYCLOAK_ADMIN_PASSWORD`, `KEYCLOAK_CLIENT_SECRET`, `MINIO_ACCESS_KEY`/`MINIO_SECRET_KEY`, `JWT_SECRET` | Required — services fail fast on startup in production if unset |
+| `KC_FRONTEND_URL`, `VITE_KEYCLOAK_URL` | Must match the host-exposed Keycloak port (`:8443`) |
+| `LOAD_DEMO_SEEDS` | `true` to load the demo users/data above; keep `false` for a clean prod DB |
+| `BIND_ADDR` | `127.0.0.1` in production (only a TLS edge proxy should be public); leave unset for local dev |
+| `CORS_ORIGINS` | Comma-separated allowlist; unset + `NODE_ENV=production` fails closed (deny cross-origin) |
 
 ## Troubleshooting
 
 ```bash
-# View all service logs
-docker compose logs -f
+# View logs for one service
+docker compose logs -f api-gateway
 
-# Check service health
+# Check health of everything
 docker compose ps
 
-# Reset database (WARNING: destroys all data)
-docker compose down -v && docker compose up -d
+# Validate compose config without starting anything
+docker compose config --quiet
+
+# Rebuild + restart a single service after a code change
+docker compose up -d --build frontend
+
+# Reset everything (WARNING: destroys all data, including Keycloak users/Postgres)
+docker compose down -v && docker compose up -d --build
 
 # Access PostgreSQL directly
-docker exec -it bpm-postgres psql -U bpmuser -d bpm
+docker exec -it bpm-postgres psql -U bpm -d bpm_db
 
-# View Kafka topics
-docker exec -it bpm-kafka kafka-topics.sh --bootstrap-server localhost:9092 --list
+# List Kafka topics
+docker exec -it bpm-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
 ```
+
+If a build seems to hang on "load build context" for a long time, make sure a `.dockerignore`
+excluding `node_modules` exists in that app/service's directory (one is present for all of them) —
+without it, Docker uploads the entire local `node_modules` as build context on every build.
+
+## Further Reading
+
+- [STRUCTURE.md](STRUCTURE.md) — full repository map: every app/service, DB migrations, Kafka
+  topics, CI.
+- `docs/` — deployment, cutover, and runbook documentation.
