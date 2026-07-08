@@ -97,7 +97,7 @@ export class ApprovalResolverService {
       } else if (step.type === 'role') {
         approvers = await this.getUsersByRole(tenantId, step.roleKey);
       } else if (step.type === 'specific_user') {
-        const userResult = await this.db.query('SELECT * FROM users WHERE id = $1', [step.userId]);
+        const userResult = await this.db.query('SELECT * FROM users WHERE id = $1 AND tenant_id = $2', [step.userId, tenantId]);
         if (userResult.rows[0]) approvers = [userResult.rows[0]];
       } else if (step.type === 'org_unit_manager') {
         approvers = await this.getOrgUnitManagers(tenantId, step.orgUnitId);

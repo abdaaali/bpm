@@ -194,7 +194,6 @@ export class InstanceService {
 
     const currentIndex = instance.current_step_index;
     const resolvedSteps: any[] = instance.resolved_steps;
-    const currentSteps = resolvedSteps.filter(s => s.stepIndex === currentIndex);
 
     // Atomic decision + advance. FOR UPDATE locks the step so concurrent
     // approvals serialize; the conditional UPDATE (decision IS NULL) makes a
@@ -227,7 +226,11 @@ export class InstanceService {
       const anyRejected = atStep.rows.some(d => d.decision === 'rejected');
       if (anyRejected) return { fullyApproved: false, nextSteps: [] as any[] };
 
-      if (allApproved || (currentSteps[0]?.parallel && atStep.rows.some(d => d.decision === 'approved'))) {
+      // `parallel` only affects how this step's approvers are assigned/notified
+      // (together, not one-after-another) — it does NOT reduce the quorum. A
+      // parallel step still requires every assigned approver's decision before
+      // advancing, same as a sequential step; do not special-case it here.
+      if (allApproved) {
         const nextIndex = currentIndex + 1;
         const nextSteps = resolvedSteps.filter(s => s.stepIndex === nextIndex);
         if (nextSteps.length === 0) {

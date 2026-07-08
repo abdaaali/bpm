@@ -64,6 +64,7 @@ export class TaskController {
   @Get('stats') @RequirePermission('tasks:read') getStats(@Req() req: any, @Query() q: any) { return this.proxy.forward(BPM_URL(), 'GET', '/tasks/stats', undefined, hdrs(req), q); }
   @Get(':id') @RequirePermission('tasks:read') getTask(@Req() req: any, @Param('id') id: string) { return this.proxy.forward(BPM_URL(), 'GET', `/tasks/${id}`, undefined, hdrs(req)); }
   @Patch(':id/claim') @RequirePermission('tasks:claim') claim(@Req() req: any, @Param('id') id: string, @Body() b: any) { return this.proxy.forward(BPM_URL(), 'PATCH', `/tasks/${id}/claim`, b, hdrs(req)); }
+  @Patch(':id/unclaim') @RequirePermission('tasks:claim') unclaim(@Req() req: any, @Param('id') id: string, @Body() b: any) { return this.proxy.forward(BPM_URL(), 'PATCH', `/tasks/${id}/unclaim`, b, hdrs(req)); }
   @Post(':id/complete') @RequirePermission('tasks:complete') complete(@Req() req: any, @Param('id') id: string, @Body() b: any) { return this.proxy.forward(BPM_URL(), 'POST', `/tasks/${id}/complete`, b, hdrs(req)); }
   @Post(':id/escalate') @RequirePermission('tasks:complete') escalate(@Req() req: any, @Param('id') id: string) { return this.proxy.forward(BPM_URL(), 'POST', `/tasks/${id}/escalate`, {}, hdrs(req)); }
   @Patch(':id/reassign') @RequirePermission('tasks:reassign') reassign(@Req() req: any, @Param('id') id: string, @Body() b: any) { return this.proxy.forward(BPM_URL(), 'PATCH', `/tasks/${id}/reassign`, b, hdrs(req)); }

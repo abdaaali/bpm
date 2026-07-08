@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TenantInterceptor } from '../auth/tenant.interceptor';
 import { ProxyService } from '../proxy/proxy.service';
 
-const ORCH_URL = () => process.env.ORCHESTRATOR_URL || 'http://bpm-orchestrator:3003';
+const ORCH_URL = () => process.env.BPM_ORCHESTRATOR_URL || process.env.ORCHESTRATOR_URL || 'http://bpm-orchestrator:3003';
 const CASE_URL = () => process.env.CASE_SERVICE_URL || 'http://case-service:3004';
 
 function authHdrs(req: any): Record<string, string> {

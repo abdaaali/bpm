@@ -104,6 +104,7 @@
   },
   "users": [
     {
+      "id": "admin-keycloak-id",
       "username": "admin",
       "email": "admin@democorp.com",
       "firstName": "Admin",
@@ -127,6 +128,7 @@
       }
     },
     {
+      "id": "requester1-keycloak-id",
       "username": "requester1",
       "email": "requester1@democorp.com",
       "firstName": "Alice",
@@ -150,6 +152,7 @@
       }
     },
     {
+      "id": "manager1-keycloak-id",
       "username": "manager1",
       "email": "manager1@democorp.com",
       "firstName": "Bob",
@@ -173,6 +176,7 @@
       }
     },
     {
+      "id": "finance1-keycloak-id",
       "username": "finance1",
       "email": "finance1@democorp.com",
       "firstName": "Carol",
@@ -196,6 +200,7 @@
       }
     },
     {
+      "id": "cab1-keycloak-id",
       "username": "cab1",
       "email": "cab1@democorp.com",
       "firstName": "Dave",
@@ -219,6 +224,7 @@
       }
     },
     {
+      "id": "engineer1-keycloak-id",
       "username": "engineer1",
       "email": "engineer1@democorp.com",
       "firstName": "Eve",
