@@ -4,8 +4,9 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import {
   Box, Typography, Card, CardContent, CardActions, Button, Chip, Grid,
   CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Alert, MenuItem,
+  TextField, Alert, MenuItem, Pagination, InputAdornment,
 } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import BarChartIcon from '@mui/icons-material/BarChart';
@@ -142,7 +143,22 @@ export default function ProcessList() {
   const [importForm, setImportForm] = useState({ name: '', slug: '', description: '', category: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data, isLoading } = useQuery('process-defs', () => processApi.listDefs(1, 50));
+  // Server-side pagination: a single hardcoded page 1/pageSize=50 fetch used to
+  // silently drop any definitions past row 50 (alphabetically sorted by name),
+  // with no way to reach them from the UI — the exact cause of real processes
+  // appearing "missing" once enough other definitions existed. `page` now
+  // drives the query so every row is reachable, and the search box below
+  // filters within the currently-loaded page without needing a backend change.
+  const PAGE_SIZE = 24;
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const { data, isLoading } = useQuery(['process-defs', page], () => processApi.listDefs(page, PAGE_SIZE));
+  const totalPages = data?.total ? Math.ceil(data.total / PAGE_SIZE) : 1;
+  const visibleDefs = (data?.data || []).filter((def: any) => {
+    if (!search.trim()) return true;
+    const q = search.trim().toLowerCase();
+    return def.name?.toLowerCase().includes(q) || def.slug?.toLowerCase().includes(q) || def.category?.toLowerCase().includes(q);
+  });
 
   const create = useMutation(processApi.createDef, {
     onSuccess: (def) => { qc.invalidateQueries('process-defs'); setCreating(false); navigate(`/processes/${def.id}/studio`); },
@@ -239,9 +255,18 @@ export default function ProcessList() {
         </Box>
       </Box>
 
+      <TextField
+        placeholder="Search processes on this page…"
+        size="small"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        sx={{ mb: 3, width: 320 }}
+        InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+      />
+
       {/* Process cards */}
       <Grid container spacing={3}>
-        {data?.data?.map((def: any) => (
+        {visibleDefs.map((def: any) => (
           <Grid item xs={12} sm={6} md={4} key={def.id}>
             <Card>
               <CardContent>
@@ -284,14 +309,22 @@ export default function ProcessList() {
             </Card>
           </Grid>
         ))}
-        {!data?.data?.length && (
+        {!visibleDefs.length && (
           <Grid item xs={12}>
             <Card sx={{ textAlign: 'center', p: 4 }}>
-              <Typography color="text.secondary">No process definitions yet. Create your first one!</Typography>
+              <Typography color="text.secondary">
+                {search.trim() ? 'No processes on this page match your search.' : 'No process definitions yet. Create your first one!'}
+              </Typography>
             </Card>
           </Grid>
         )}
       </Grid>
+
+      {totalPages > 1 && (
+        <Box display="flex" justifyContent="center" mt={3}>
+          <Pagination count={totalPages} page={page} onChange={(_, p) => setPage(p)} color="primary" />
+        </Box>
+      )}
 
       {/* ── Delete confirmation dialog ── */}
       <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs" fullWidth>

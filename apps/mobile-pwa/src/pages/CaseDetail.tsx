@@ -10,8 +10,11 @@ import SendIcon from '@mui/icons-material/Send';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import GroupsIcon from '@mui/icons-material/Groups';
 import PersonIcon from '@mui/icons-material/Person';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import { api } from '../api';
 import { useAuth } from '../auth';
+import { getConn, MODES } from '../connection';
+import { PriorityChip, StatusChip, EmptyState, LoadingState } from '../components/ui';
 
 // The single forward step offered at each status (mobile). One action at a time
 // so the flow is sequential: claim → begin work → resolve → close.
@@ -19,7 +22,6 @@ const NEXT: Record<string, string[]> = {
   new: ['in_progress'], open: ['in_progress'], pending: ['in_progress'], approved: ['in_progress'],
   in_progress: ['resolved'], resolved: ['closed'], pending_approval: [],
 };
-const PRIO: Record<string, any> = { critical: 'error', high: 'warning', medium: 'info', low: 'default' };
 const ASSIGN_ROLES = ['admin', 'manager', 'noc'];
 
 function fmtDate(s?: string) { return s ? new Date(s).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '—'; }
@@ -44,6 +46,7 @@ function Field({ label, value }: { label: string; value: any }) {
 export default function CaseDetail() {
   const { id } = useParams(); const nav = useNavigate();
   const { user } = useAuth();
+  const meta = MODES.find((m) => m.mode === getConn()?.mode);
   const [c, setC] = useState<any>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [note, setNote] = useState(''); const [internal, setInternal] = useState(true);
@@ -51,6 +54,7 @@ export default function CaseDetail() {
   const [reOpen, setReOpen] = useState(false);
   const [users, setUsers] = useState<any[]>([]); const [teams, setTeams] = useState<any[]>([]);
   const [pickUser, setPickUser] = useState<any>(null); const [pickTeam, setPickTeam] = useState<string>('');
+  const [loadingPeople, setLoadingPeople] = useState(false);
 
   const canAssign = (user?.roles || []).some((r: string) => ASSIGN_ROLES.includes(r));
 
@@ -86,13 +90,21 @@ export default function CaseDetail() {
     setReOpen(true);
     setPickTeam(c.assigned_team_id || ''); // preserve current team unless changed
     if (!users.length) {
+      setLoadingPeople(true);
       try {
-        const [u, o] = await Promise.all([api.get('/users'), api.get('/org-units')]);
+        // Explicit pageSize: the server defaults to 20 with none supplied, which
+        // would silently truncate the assignee list once a tenant has more than
+        // 20 users — the same class of bug that buried real Process Studio
+        // entries behind a hardcoded page limit (see Phase 1 process-definition
+        // repair). 200 matches the equivalent fetch on the main portal
+        // (WorkItemDetail/ProcessActionPanel).
+        const [u, o] = await Promise.all([api.get('/users', { params: { pageSize: 200 } }), api.get('/org-units', { params: { pageSize: 200 } })]);
         const ud = Array.isArray(u.data) ? u.data : u.data?.data || [];
         const od = Array.isArray(o.data) ? o.data : o.data?.data || [];
         setUsers(ud.filter((x: any) => x.active !== false));
         setTeams(od.filter((x: any) => x.type === 'team'));
       } catch { setMsg('Could not load people'); }
+      finally { setLoadingPeople(false); }
     }
   };
 
@@ -105,7 +117,7 @@ export default function CaseDetail() {
     } catch (e: any) { setMsg(e?.response?.data?.message || 'Reassign failed'); } finally { setBusy(false); }
   };
 
-  if (!c) return <Box sx={{ textAlign: 'center', mt: 6 }}><CircularProgress /></Box>;
+  if (!c) return <LoadingState label="Loading case…" />;
   // Work actions only when the case is assigned to ME. Unassigned → claim first;
   // assigned to someone else → no work actions (a manager can still reassign).
   const mine = !!c.mine;
@@ -115,24 +127,32 @@ export default function CaseDetail() {
   const ci = ctx.affectedService || ctx.affectedHostId || ctx.siteCode || ctx.ciName;
 
   return (
-    <Box sx={{ pb: 6 }}>
-      <AppBar position="sticky"><Toolbar variant="dense">
-        <IconButton color="inherit" edge="start" onClick={() => nav(-1)}><ArrowBackIcon /></IconButton>
-        <Typography variant="h6">{c.case_number}</Typography>
-      </Toolbar></AppBar>
+    <Box sx={{ pb: 6, minHeight: '100dvh', bgcolor: 'background.default' }}>
+      <AppBar position="sticky" elevation={0} sx={{ background: meta?.gradient }}>
+        <Toolbar sx={{ minHeight: 60 }}>
+          <IconButton color="inherit" edge="start" onClick={() => nav(-1)}
+            sx={{ bgcolor: 'rgba(255,255,255,0.14)', mr: 1, transition: 'background-color 180ms ease', '&:hover': { bgcolor: 'rgba(255,255,255,0.24)' } }}>
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="h6" sx={{ fontSize: 18, fontWeight: 800 }}>{c.case_number}</Typography>
+        </Toolbar>
+      </AppBar>
 
-      <Box sx={{ p: 2 }}>
-        <Typography variant="h6" gutterBottom>{c.title}</Typography>
-        <Stack direction="row" spacing={1} mb={2} flexWrap="wrap" useFlexGap>
-          <Chip label={c.type} size="small" />
-          <Chip label={c.priority} size="small" color={PRIO[c.priority]} />
-          <Chip label={String(c.status).replace(/_/g, ' ')} size="small" variant="outlined" />
-          {c.major_incident && <Chip label="MAJOR" size="small" color="error" />}
+      {/* Colored sub-header — title + chips live on-brand, mirrors Login/Connect/WorkOrderDetail. */}
+      <Box sx={{ background: meta?.gradient, color: '#fff', px: 2.5, pt: 1, pb: 3.5, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 }}>
+        <Typography variant="h5" fontWeight={800} sx={{ mb: 1.5 }}>{c.title}</Typography>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+          <Chip label={c.type} size="small" sx={{ textTransform: 'capitalize', bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)' }} />
+          <PriorityChip value={c.priority} size="medium" />
+          <StatusChip value={c.status} size="medium" />
+          {c.major_incident && <Chip label="MAJOR" size="small" color="error" sx={{ fontWeight: 700 }} />}
           {sla && <Chip label={sla.text} size="small" color={sla.color} variant={sla.color === 'default' ? 'outlined' : 'filled'} />}
         </Stack>
+      </Box>
 
+      <Box sx={{ px: 2.5, mt: -2 }}>
         {/* Details */}
-        <Card sx={{ mb: 2 }}><CardContent>
+        <Card sx={{ mb: 2.5, borderRadius: '24px' }}><CardContent sx={{ p: 2.5 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 1.5, columnGap: 2 }}>
             <Field label="Assigned team" value={c.team_name} />
             <Field label="Assignee" value={c.assignee_name || 'Unassigned'} />
@@ -151,31 +171,33 @@ export default function CaseDetail() {
         </CardContent></Card>
 
         {/* Actions */}
-        <Stack spacing={1} mb={2}>
-          {!c.assignee_id && <Button fullWidth variant="contained" disabled={busy} onClick={claim}>Claim this case</Button>}
+        <Stack spacing={1.25} mb={2.5}>
+          {!c.assignee_id && <Button fullWidth size="large" variant="contained" disabled={busy} onClick={claim}>Claim this case</Button>}
           {c.assignee_id && !mine && (
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 0.5 }}>
               Assigned to {c.assignee_name || 'another user'} — only they can work it.
             </Typography>
           )}
           {actions.map((a) => (
-            <Button key={a} fullWidth variant={a === 'resolved' ? 'contained' : 'outlined'} color={a === 'resolved' ? 'success' : 'primary'}
+            <Button key={a} fullWidth size="large" variant={a === 'resolved' ? 'contained' : 'outlined'} color={a === 'resolved' ? 'success' : 'primary'}
               disabled={busy} onClick={() => transition(a)}>
               {a === 'in_progress' ? 'Begin work' : a === 'resolved' ? 'Resolve' : a === 'closed' ? 'Close' : a.replace('_', ' ')}
             </Button>
           ))}
           {canAssign && (
-            <Button fullWidth variant="outlined" color="secondary" startIcon={<SwapHorizIcon />} disabled={busy} onClick={openReassign}>
+            <Button fullWidth size="large" variant="outlined" color="secondary" startIcon={<SwapHorizIcon />} disabled={busy} onClick={openReassign}>
               Reassign
             </Button>
           )}
         </Stack>
 
         {/* Work notes */}
-        <Card><CardContent>
+        <Card sx={{ borderRadius: '24px' }}><CardContent sx={{ p: 2.5 }}>
           <Typography variant="subtitle2" fontWeight={700} gutterBottom>Work notes ({comments.length})</Typography>
           <Stack spacing={1.5} sx={{ mb: 2 }}>
-            {comments.length === 0 && <Typography variant="body2" color="text.secondary">No notes yet. Add your progress below.</Typography>}
+            {comments.length === 0 && (
+              <EmptyState icon={<ChatBubbleOutlineIcon fontSize="inherit" />} title="No notes yet" description="Add your progress below." />
+            )}
             {comments.map((m) => (
               <Box key={m.id} sx={{ display: 'flex', gap: 1 }}>
                 <Avatar sx={{ width: 28, height: 28, fontSize: 13, bgcolor: m.internal ? 'warning.light' : 'primary.light' }}>
@@ -208,14 +230,22 @@ export default function CaseDetail() {
         <DialogTitle>Reassign {c.case_number}</DialogTitle>
         <DialogContent>
           <Typography variant="caption" color="text.secondary">Assign to a person, a team, or both.</Typography>
+          {loadingPeople && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2 }}>
+              <CircularProgress size={16} />
+              <Typography variant="caption" color="text.secondary">Loading people & teams…</Typography>
+            </Box>
+          )}
           <Autocomplete
             sx={{ mt: 2 }} options={users} value={pickUser} onChange={(_, v) => setPickUser(v)}
+            loading={loadingPeople} disabled={loadingPeople}
             getOptionLabel={(o: any) => `${(o.first_name || '')} ${(o.last_name || '')}`.trim() || o.username || o.email}
             isOptionEqualToValue={(o, v) => o.id === v?.id}
+            noOptionsText={loadingPeople ? 'Loading…' : 'No people found'}
             renderInput={(p) => <TextField {...p} label="Assign to person" size="small"
               InputProps={{ ...p.InputProps, startAdornment: <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'text.disabled' }} /> }} />}
           />
-          <TextField select fullWidth size="small" sx={{ mt: 2 }} label="Assign to team"
+          <TextField select fullWidth size="small" sx={{ mt: 2 }} label="Assign to team" disabled={loadingPeople}
             value={pickTeam} onChange={(e) => setPickTeam(e.target.value)}
             InputProps={{ startAdornment: <GroupsIcon fontSize="small" sx={{ mr: 0.5, color: 'text.disabled' }} /> }}>
             <MenuItem value=""><em>— none —</em></MenuItem>

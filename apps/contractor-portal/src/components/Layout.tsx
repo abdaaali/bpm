@@ -34,12 +34,17 @@ export default function Layout() {
 
   const drawer = (
     <Box>
-      <Box sx={{ p: 2, bgcolor: 'primary.main', color: 'white' }}>
-        <Box display="flex" alignItems="center" gap={1}>
-          <HardwareOutlined />
-          <Box>
-            <Typography variant="subtitle2" fontWeight="bold">Contractor Portal</Typography>
-            <Typography variant="caption" sx={{ opacity: 0.85 }}>{user?.company_name}</Typography>
+      <Box sx={{ p: 2.25, background: 'linear-gradient(135deg, #e65100 0%, #ac1900 100%)', color: 'white' }}>
+        <Box display="flex" alignItems="center" gap={1.25}>
+          <Box sx={{
+            width: 38, height: 38, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.18)',
+            border: '1px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <HardwareOutlined fontSize="small" />
+          </Box>
+          <Box minWidth={0}>
+            <Typography variant="subtitle2" fontWeight={800} noWrap>Contractor Portal</Typography>
+            <Typography variant="caption" sx={{ opacity: 0.9 }} noWrap component="div">{user?.company_name}</Typography>
           </Box>
         </Box>
       </Box>
@@ -51,11 +56,21 @@ export default function Layout() {
             <ListItem key={item.label} disablePadding>
               <ListItemButton
                 onClick={() => { navigate(item.path); if (isMobile) setMobileOpen(false); }}
-                sx={{ borderRadius: 1, mx: 0.5, bgcolor: isActive ? 'primary.light' : 'transparent', color: isActive ? 'white' : 'inherit', '&:hover': { bgcolor: isActive ? 'primary.light' : 'action.hover' } }}
+                sx={{
+                  borderRadius: 2, mx: 1, my: 0.25, py: 1.1, position: 'relative', pl: isActive ? 2.25 : 2,
+                  bgcolor: isActive ? 'rgba(230,81,0,0.1)' : 'transparent', color: isActive ? 'primary.main' : 'text.primary',
+                  '&:hover': { bgcolor: isActive ? 'rgba(230,81,0,0.16)' : 'rgba(30,20,10,0.045)' },
+                  ...(isActive && {
+                    '&::before': {
+                      content: '""', position: 'absolute', left: 0, top: 8, bottom: 8, width: 3,
+                      borderRadius: 3, bgcolor: 'primary.main',
+                    },
+                  }),
+                }}
               >
-                <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: isActive ? 600 : 400 }} />
-                {isActive && <ChevronRight sx={{ fontSize: 16 }} />}
+                <ListItemIcon sx={{ color: isActive ? 'primary.main' : 'text.secondary', minWidth: 36, transition: 'color 160ms ease' }}>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: isActive ? 700 : 500 }} />
+                {isActive && <ChevronRight sx={{ fontSize: 18, color: 'primary.main' }} />}
               </ListItemButton>
             </ListItem>
           );
@@ -66,7 +81,7 @@ export default function Layout() {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <AppBar position="fixed" sx={{ zIndex: theme.zIndex.drawer + 1, bgcolor: 'primary.dark' }}>
+      <AppBar position="fixed" sx={{ zIndex: theme.zIndex.drawer + 1, background: 'linear-gradient(135deg, #e65100 0%, #ac1900 100%)' }}>
         <Toolbar>
           {isMobile && (
             <IconButton color="inherit" edge="start" onClick={() => setMobileOpen(!mobileOpen)} sx={{ mr: 1 }}>

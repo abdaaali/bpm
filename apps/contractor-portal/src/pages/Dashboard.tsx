@@ -11,19 +11,7 @@ import {
 import { format } from 'date-fns';
 import { dashboardApi } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-
-const STATUS_CHIPS: Record<string, { label: string; color: any; icon: React.ReactNode }> = {
-  pending: { label: 'Awaiting Acceptance', color: 'warning', icon: <Assignment fontSize="small" /> },
-  accepted: { label: 'Accepted', color: 'info', icon: <Schedule fontSize="small" /> },
-  in_progress: { label: 'In Progress', color: 'primary', icon: <HourglassBottom fontSize="small" /> },
-  submitted: { label: 'Pending Review', color: 'secondary', icon: <TrendingUp fontSize="small" /> },
-  rework_required: { label: 'Rework Required', color: 'error', icon: <Warning fontSize="small" /> },
-  closed: { label: 'Closed', color: 'success', icon: <CheckCircle fontSize="small" /> },
-};
-
-const PRIORITY_COLORS: Record<string, string> = {
-  critical: '#d32f2f', high: '#f57c00', medium: '#f9a825', low: '#388e3c',
-};
+import { statusMeta, priorityChipSx } from '../utils/statusColors';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -64,14 +52,19 @@ export default function Dashboard() {
         {statCards.map(s => (
           <Grid item xs={6} sm={4} md={2.4} key={s.label}>
             <Card
-              sx={{ cursor: 'pointer', borderTop: `4px solid ${s.color}`, transition: 'transform 0.1s', '&:hover': { transform: 'translateY(-2px)' } }}
+              sx={{
+                cursor: 'pointer', position: 'relative', overflow: 'hidden',
+                transition: 'box-shadow 200ms ease, transform 200ms ease',
+                '&:hover': { boxShadow: '0 10px 24px rgba(30,20,10,0.12)', transform: 'translateY(-3px)' },
+              }}
               onClick={() => navigate(`/work-orders?status=${s.status}`)}
             >
-              <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, bgcolor: s.color }} />
+              <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
                 {loading ? <Skeleton width={40} height={48} /> : (
-                  <Typography variant="h3" fontWeight="bold" color={s.color}>{s.value}</Typography>
+                  <Typography variant="h3" fontWeight={800} color={s.color}>{s.value}</Typography>
                 )}
-                <Typography variant="caption" color="text.secondary" display="block">{s.label}</Typography>
+                <Typography variant="caption" color="text.secondary" display="block" fontWeight={600}>{s.label}</Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -96,7 +89,7 @@ export default function Dashboard() {
       <Card>
         <CardContent>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6">Active Work Orders</Typography>
+            <Typography variant="h6" fontWeight={700}>Active Work Orders</Typography>
             <Button size="small" onClick={() => navigate('/work-orders')}>View All →</Button>
           </Box>
           {loading ? (
@@ -109,7 +102,7 @@ export default function Dashboard() {
             <TableContainer>
               <Table size="small">
                 <TableHead>
-                  <TableRow sx={{ bgcolor: 'grey.50' }}>
+                  <TableRow>
                     <TableCell><b>Reference</b></TableCell>
                     <TableCell><b>Title</b></TableCell>
                     <TableCell><b>Priority</b></TableCell>
@@ -120,14 +113,14 @@ export default function Dashboard() {
                 </TableHead>
                 <TableBody>
                   {recent.map((wo: any) => {
-                    const chip = STATUS_CHIPS[wo.assignment_status] || { label: wo.assignment_status, color: 'default', icon: null };
+                    const chip = statusMeta(wo.assignment_status);
                     const isOverdue = wo.due_at && new Date(wo.due_at) < new Date() && !['closed', 'rejected'].includes(wo.assignment_status);
                     return (
                       <TableRow key={wo.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/work-orders/${wo.id}`)}>
                         <TableCell sx={{ fontFamily: 'monospace', fontWeight: 600 }}>{wo.case_number}</TableCell>
                         <TableCell>{wo.title}</TableCell>
                         <TableCell>
-                          <Chip label={wo.priority} size="small" sx={{ bgcolor: PRIORITY_COLORS[wo.priority] + '20', color: PRIORITY_COLORS[wo.priority], fontWeight: 600 }} />
+                          <Chip label={wo.priority} size="small" sx={priorityChipSx(wo.priority)} />
                         </TableCell>
                         <TableCell><Chip label={chip.label} color={chip.color} size="small" /></TableCell>
                         <TableCell sx={{ color: isOverdue ? 'error.main' : 'inherit', fontWeight: isOverdue ? 600 : 400 }}>

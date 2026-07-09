@@ -128,9 +128,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             value={search}
             onChange={e => setSearch(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') runSearch(); }}
-            sx={{ flexGrow: 1, maxWidth: 420, bgcolor: 'rgba(255,255,255,0.15)', borderRadius: 1,
-                  '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
-                  '& input': { color: 'inherit' }, '& input::placeholder': { color: 'rgba(255,255,255,0.8)' } }}
+            sx={{
+              flexGrow: 1, maxWidth: 420, bgcolor: 'rgba(255,255,255,0.14)', borderRadius: 2,
+              transition: 'background-color 160ms ease, box-shadow 160ms ease',
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' },
+              '&:focus-within': { bgcolor: 'rgba(255,255,255,0.24)', boxShadow: '0 0 0 2px rgba(255,255,255,0.4)' },
+              '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
+              '& input': { color: 'inherit' }, '& input::placeholder': { color: 'rgba(255,255,255,0.85)', opacity: 1 },
+            }}
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: 'inherit' }} fontSize="small" /></InputAdornment> }}
           />
           <Box sx={{ flexGrow: 1 }} />
@@ -198,20 +203,34 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <Toolbar />
         <Box sx={{ overflow: 'auto', py: 1 }}>
           <List>
-            {NAV.filter(item => can(item.perm)).map(item => (
-              <ListItem key={item.path} disablePadding>
-                <ListItemButton
-                  selected={isSelected(item)}
-                  onClick={() => navigate(item.path)}
-                  sx={{ borderRadius: 2, mx: 1, my: 0.25, py: 1.25, '&.Mui-selected': { bgcolor: 'primary.light', color: 'primary.contrastText', '& .MuiListItemIcon-root': { color: 'primary.contrastText' } } }}
-                >
-                  <ListItemIcon sx={{ minWidth: 40, color: isSelected(item) ? 'primary.contrastText' : 'text.secondary' }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: 15, fontWeight: 600 }} />
-                </ListItemButton>
-              </ListItem>
-            ))}
+            {NAV.filter(item => can(item.perm)).map(item => {
+              const active = isSelected(item);
+              return (
+                <ListItem key={item.path} disablePadding>
+                  <ListItemButton
+                    selected={active}
+                    onClick={() => navigate(item.path)}
+                    sx={{
+                      borderRadius: 2, mx: 1, my: 0.25, py: 1.25, position: 'relative', pl: active ? 2.25 : 2,
+                      '&:hover': { bgcolor: active ? 'rgba(25,118,210,0.14)' : 'rgba(15,23,42,0.045)' },
+                      '&.Mui-selected': {
+                        bgcolor: 'rgba(25,118,210,0.1)', color: 'primary.main',
+                        '& .MuiListItemIcon-root': { color: 'primary.main' },
+                        '&::before': {
+                          content: '""', position: 'absolute', left: 0, top: 8, bottom: 8, width: 3,
+                          borderRadius: 3, bgcolor: 'primary.main',
+                        },
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 40, color: 'text.secondary', transition: 'color 160ms ease' }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: 15, fontWeight: active ? 700 : 600 }} />
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
           </List>
         </Box>
       </Drawer>

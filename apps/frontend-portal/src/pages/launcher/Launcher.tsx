@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Grid, Card, CardActionArea, Avatar, Button } from '@mui/material';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import StoreIcon from '@mui/icons-material/Store';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import SecurityIcon from '@mui/icons-material/Security';
@@ -66,11 +67,18 @@ export function TileGrid({ title, subtitle, tiles }: { title: string; subtitle?:
       <Grid container spacing={2.5} mt={subtitle ? 0 : 1}>
         {visible.map((t) => (
           <Grid item xs={12} sm={6} md={4} key={t.title}>
-            <Card variant="outlined" sx={{ height: '100%', transition: 'box-shadow .15s, transform .15s', '&:hover': { boxShadow: 4, transform: 'translateY(-2px)' } }}>
-              <CardActionArea sx={{ p: 2.5, height: '100%' }} onClick={() => navigate(t.path)}>
-                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                  <Avatar variant="rounded" sx={{ bgcolor: t.color, width: 44, height: 44 }}>{t.icon}</Avatar>
-                  <Typography variant="h6" fontWeight={700}>{t.title}</Typography>
+            <Card sx={{
+              height: '100%', position: 'relative', overflow: 'hidden',
+              transition: 'box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease',
+              '&:hover': { boxShadow: '0 12px 28px rgba(15,23,42,0.14)', transform: 'translateY(-3px)', borderColor: `${t.color}55` },
+              '&:hover .tile-arrow': { opacity: 1, transform: 'translateX(0)' },
+            }}>
+              <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, bgcolor: t.color }} />
+              <CardActionArea sx={{ p: 2.75, height: '100%' }} onClick={() => navigate(t.path)}>
+                <Box display="flex" alignItems="center" gap={1.5} mb={1.25}>
+                  <Avatar variant="rounded" sx={{ bgcolor: t.color, width: 46, height: 46, boxShadow: `0 4px 12px ${t.color}4d` }}>{t.icon}</Avatar>
+                  <Typography variant="h6" fontWeight={700} flex={1}>{t.title}</Typography>
+                  <ChevronRightIcon className="tile-arrow" sx={{ color: t.color, opacity: 0, transform: 'translateX(-4px)', transition: 'opacity 200ms ease, transform 200ms ease' }} />
                 </Box>
                 <Typography variant="body2" color="text.secondary">{t.desc}</Typography>
               </CardActionArea>

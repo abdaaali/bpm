@@ -9,6 +9,7 @@ import {
 import { Search } from '@mui/icons-material';
 import { format, isAfter } from 'date-fns';
 import { workOrderApi } from '../api/client';
+import { statusMeta, priorityChipSx } from '../utils/statusColors';
 
 const STATUS_OPTS = [
   { value: '', label: 'All Statuses' },
@@ -20,15 +21,6 @@ const STATUS_OPTS = [
   { value: 'overdue', label: 'Overdue' },
   { value: 'closed', label: 'Closed' },
 ];
-
-const STATUS_CHIP_COLORS: Record<string, any> = {
-  pending: 'warning', accepted: 'info', in_progress: 'primary',
-  submitted: 'secondary', rework_required: 'error', closed: 'success', rejected: 'default',
-};
-
-const PRIORITY_COLORS: Record<string, string> = {
-  critical: '#d32f2f', high: '#f57c00', medium: '#f9a825', low: '#388e3c',
-};
 
 export default function WorkOrderList() {
   const navigate = useNavigate();
@@ -91,11 +83,15 @@ export default function WorkOrderList() {
               const isOverdue = wo.due_at && new Date(wo.due_at) < new Date() && !['closed', 'rejected'].includes(wo.assignment_status);
               return (
                 <Grid item xs={12} key={wo.id}>
-                  <Card sx={{ cursor: 'pointer', borderLeft: `4px solid ${PRIORITY_COLORS[wo.priority] || '#999'}` }} onClick={() => navigate(`/work-orders/${wo.id}`)}>
+                  <Card sx={{
+                    cursor: 'pointer', borderLeft: `4px solid ${priorityChipSx(wo.priority).color}`,
+                    transition: 'box-shadow 200ms ease, transform 200ms ease',
+                    '&:hover': { boxShadow: '0 8px 20px rgba(30,20,10,0.12)', transform: 'translateY(-2px)' },
+                  }} onClick={() => navigate(`/work-orders/${wo.id}`)}>
                     <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                       <Box display="flex" justifyContent="space-between" alignItems="flex-start">
                         <Typography variant="subtitle2" fontWeight="bold">{wo.case_number}</Typography>
-                        <Chip label={wo.assignment_status.replace('_', ' ')} size="small" color={STATUS_CHIP_COLORS[wo.assignment_status]} />
+                        <Chip label={wo.assignment_status.replace('_', ' ')} size="small" color={statusMeta(wo.assignment_status).color} />
                       </Box>
                       <Typography variant="body2">{wo.title}</Typography>
                       {wo.due_at && <Typography variant="caption" color={isOverdue ? 'error' : 'text.secondary'}>Due: {format(new Date(wo.due_at), 'MMM d, HH:mm')}{isOverdue && ' ⚠'}</Typography>}
@@ -136,7 +132,7 @@ export default function WorkOrderList() {
       <TableContainer component={Paper}>
         <Table size="small">
           <TableHead>
-            <TableRow sx={{ bgcolor: 'grey.50' }}>
+            <TableRow>
               <TableCell><b>Reference</b></TableCell>
               <TableCell><b>Title / Site</b></TableCell>
               <TableCell><b>Priority</b></TableCell>
@@ -162,10 +158,10 @@ export default function WorkOrderList() {
                     {wo.site_name && <Typography variant="caption" color="text.secondary">{wo.site_name}</Typography>}
                   </TableCell>
                   <TableCell>
-                    <Chip label={wo.priority} size="small" sx={{ bgcolor: PRIORITY_COLORS[wo.priority] + '20', color: PRIORITY_COLORS[wo.priority], fontWeight: 600, textTransform: 'capitalize' }} />
+                    <Chip label={wo.priority} size="small" sx={priorityChipSx(wo.priority)} />
                   </TableCell>
                   <TableCell>
-                    <Chip label={wo.assignment_status?.replace(/_/g, ' ')} size="small" color={STATUS_CHIP_COLORS[wo.assignment_status]} sx={{ textTransform: 'capitalize' }} />
+                    <Chip label={wo.assignment_status?.replace(/_/g, ' ')} size="small" color={statusMeta(wo.assignment_status).color} sx={{ textTransform: 'capitalize' }} />
                   </TableCell>
                   <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{wo.assigned_at ? format(new Date(wo.assigned_at), 'MMM d') : '—'}</TableCell>
                   <TableCell sx={{ color: isOverdue ? 'error.main' : 'inherit', fontWeight: isOverdue ? 600 : 400 }}>

@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, AppBar, Toolbar, Typography, BottomNavigation, BottomNavigationAction, Paper,
-  List, ListItemButton, ListItemText, ListSubheader, Chip, CircularProgress, Avatar, Button, Divider, Badge,
-  Card, CardContent, LinearProgress, Grid,
+  List, ListItemButton, ListItemText, Chip, Avatar, Button, Divider, Card, CardContent, LinearProgress, Grid,
 } from '@mui/material';
 import FolderIcon from '@mui/icons-material/Folder';
 import NotificationsIcon from '@mui/icons-material/Notifications';
@@ -15,8 +14,7 @@ import FactCheckIcon from '@mui/icons-material/FactCheck';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { getConn, clearConn, MODES } from '../connection';
-
-const PRIO: Record<string, any> = { critical: 'error', high: 'warning', medium: 'info', low: 'default' };
+import { PriorityChip, StatusChip, dueChipProps, EmptyState, LoadingState, clickableCardSx } from '../components/ui';
 
 function useList(path: string, enabled = true) {
   const [data, setData] = useState<any[]>([]); const [loading, setLoading] = useState(true);
@@ -25,91 +23,123 @@ function useList(path: string, enabled = true) {
   return { data, loading, reload: load };
 }
 
-function Loading() { return <Box sx={{ textAlign: 'center', mt: 6 }}><CircularProgress /></Box>; }
-
-function dueText(c: any): { text: string; color: any } | null {
-  if (c.breached) return { text: 'overdue', color: 'error' };
-  if (c.sla_at_risk) return { text: 'at risk', color: 'warning' };
-  if (!c.sla_due_at) return null;
-  const h = Math.round((new Date(c.sla_due_at).getTime() - Date.now()) / 3.6e6);
-  if (h <= 0) return { text: 'overdue', color: 'error' };
-  return { text: h < 24 ? `due ${h}h` : `due ${Math.round(h / 24)}d`, color: 'default' };
+/** Small header row used at the top of every tab: title/count + a refresh action. */
+function TabHeader({ title, onRefresh }: { title: string; onRefresh: () => void }) {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2.5, pt: 2.5, pb: 1 }}>
+      <Typography variant="h6" fontWeight={800} fontSize="1.15rem">{title}</Typography>
+      <Button size="small" startIcon={<RefreshIcon fontSize="small" />} onClick={onRefresh}>Refresh</Button>
+    </Box>
+  );
 }
 
 function CasesTab() {
   const nav = useNavigate();
   const { data, loading, reload } = useList('/cases/my-work');
   const claim = (id: string) => api.post(`/cases/${id}/claim`).then(reload).catch(() => {});
-  if (loading) return <Loading />;
+  if (loading) return <LoadingState label="Loading your cases…" />;
   const mine = data.filter((c: any) => c.mine);
   const team = data.filter((c: any) => !c.mine);
 
   const Row = (c: any, claimable: boolean) => {
-    const due = dueText(c);
+    const due = dueChipProps(c);
     return (
-      <ListItemButton key={c.id} divider onClick={() => nav(`/case/${c.id}`)} sx={{ alignItems: 'flex-start' }}>
-        <ListItemText
-          primary={
-            <Box display="flex" gap={0.75} alignItems="center" flexWrap="wrap">
-              <b>{c.case_number}</b>
-              <Chip size="small" label={c.priority} color={PRIO[c.priority]} sx={{ height: 18 }} />
-              {due && <Chip size="small" label={due.text} color={due.color} variant="outlined" sx={{ height: 18 }} />}
-            </Box>}
-          secondary={<>{c.title}<br /><small>{String(c.status).replace(/_/g, ' ')}{c.team_name ? ` · ${c.team_name}` : ''}</small></>} />
-        {claimable && (
-          <Button size="small" variant="outlined" sx={{ mt: 0.5 }}
-            onClick={(e) => { e.stopPropagation(); claim(c.id); }}>Claim</Button>
-        )}
-      </ListItemButton>
+      <Card key={c.id} sx={{ ...clickableCardSx, mx: 2, mb: 1.75 }}>
+        <ListItemButton onClick={() => nav(`/case/${c.id}`)} sx={{ alignItems: 'flex-start', py: 1.75, px: 2 }}>
+          <ListItemText
+            primary={
+              <Box display="flex" gap={0.75} alignItems="center" flexWrap="wrap">
+                <Typography component="span" fontWeight={800} variant="body1">{c.case_number}</Typography>
+                <PriorityChip value={c.priority} />
+                {due && <Chip size="small" label={due.text} color={due.color} variant="outlined" sx={{ height: 20 }} />}
+              </Box>}
+            secondary={
+              <>
+                <Typography component="span" variant="body2" color="text.primary" sx={{ display: 'block', mt: 0.5 }}>{c.title}</Typography>
+                <Box display="flex" alignItems="center" gap={0.75} mt={1}>
+                  <StatusChip value={c.status} />
+                  {c.team_name && <Typography variant="caption" color="text.secondary">{c.team_name}</Typography>}
+                </Box>
+              </>
+            } />
+          {claimable && (
+            <Button size="small" variant="outlined" sx={{ mt: 0.5, flexShrink: 0 }}
+              onClick={(e) => { e.stopPropagation(); claim(c.id); }}>Claim</Button>
+          )}
+        </ListItemButton>
+      </Card>
     );
   };
 
   return (
-    <List subheader={<li />}>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', px: 1 }}><Button size="small" startIcon={<RefreshIcon />} onClick={reload}>Refresh</Button></Box>
-      <ListSubheader>My cases ({mine.length})</ListSubheader>
-      {mine.map((c: any) => Row(c, false))}
-      {mine.length === 0 && <Typography sx={{ px: 2, py: 1 }} variant="body2" color="text.secondary">None assigned to you.</Typography>}
+    <Box sx={{ pb: 1 }}>
+      <TabHeader title={`My cases (${mine.length})`} onRefresh={reload} />
+      <List sx={{ py: 0.5 }}>
+        {mine.map((c: any) => Row(c, false))}
+      </List>
+      {mine.length === 0 && <Typography sx={{ px: 3.5, py: 1 }} variant="body2" color="text.secondary">None assigned to you.</Typography>}
       {team.length > 0 && <>
-        <ListSubheader>Team queue — unclaimed ({team.length})</ListSubheader>
-        {team.map((c: any) => Row(c, true))}
+        <TabHeader title={`Team queue · unclaimed (${team.length})`} onRefresh={reload} />
+        <List sx={{ py: 0.5 }}>
+          {team.map((c: any) => Row(c, true))}
+        </List>
       </>}
-      {!data.length && <Typography sx={{ p: 3, textAlign: 'center' }} color="text.secondary">Nothing assigned to you or your team.</Typography>}
-    </List>
+      {!data.length && <EmptyState icon={<FolderIcon fontSize="inherit" />} title="Nothing here" description="No cases assigned to you or your team." />}
+    </Box>
   );
 }
 
 function AlertsTab() {
   const { data, loading, reload } = useList('/notifications?unread=false&page=1');
   const markRead = (id: string) => api.patch('/notifications/read', { ids: [id] }).then(reload).catch(() => {});
-  if (loading) return <Loading />;
+  if (loading) return <LoadingState label="Loading alerts…" />;
   return (
-    <List>
-      {data.map((n) => (
-        <ListItemButton key={n.id} divider onClick={() => markRead(n.id)} sx={{ bgcolor: n.read_at ? undefined : '#e3f2fd' }}>
-          <ListItemText primary={<b>{n.subject}</b>} secondary={<span dangerouslySetInnerHTML={{ __html: (n.body || '').replace(/<[^>]+>/g, ' ').slice(0, 120) }} />} />
-        </ListItemButton>
-      ))}
-      {!data.length && <Typography sx={{ p: 3, textAlign: 'center' }} color="text.secondary">No alerts.</Typography>}
-    </List>
+    <Box sx={{ pb: 1 }}>
+      <TabHeader title={`Alerts (${data.length})`} onRefresh={reload} />
+      <List sx={{ px: 1.5 }}>
+        {data.map((n) => (
+          <ListItemButton key={n.id} onClick={() => markRead(n.id)} sx={{
+            mb: 0.75, py: 1.25,
+            bgcolor: n.read_at ? 'transparent' : 'primary.50',
+            '&:hover': { bgcolor: n.read_at ? 'rgba(0,0,0,0.03)' : 'primary.100' },
+          }}>
+            <NotificationsIcon fontSize="small" sx={{ mr: 1.5, color: n.read_at ? 'text.disabled' : 'primary.main', mt: 0.25 }} />
+            <ListItemText
+              primary={<Typography variant="body2" fontWeight={n.read_at ? 500 : 700}>{n.subject}</Typography>}
+              secondary={<span dangerouslySetInnerHTML={{ __html: (n.body || '').replace(/<[^>]+>/g, ' ').slice(0, 120) }} />} />
+          </ListItemButton>
+        ))}
+      </List>
+      {!data.length && <EmptyState icon={<NotificationsIcon fontSize="inherit" />} title="You're all caught up" description="No alerts right now." />}
+    </Box>
   );
 }
 
 function WorkOrdersTab() {
   const nav = useNavigate();
   const { data, loading, reload } = useList('/work-orders');
-  if (loading) return <Loading />;
+  if (loading) return <LoadingState label="Loading work orders…" />;
   return (
-    <List>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', px: 1 }}><Button size="small" startIcon={<RefreshIcon />} onClick={reload}>Refresh</Button></Box>
-      {data.map((w) => (
-        <ListItemButton key={w.id} divider onClick={() => nav(`/wo/${w.id}`)}>
-          <ListItemText primary={<b>{w.work_order_ref || w.title || w.id}</b>}
-            secondary={<>{w.title || w.description}<br /><small>{String(w.assignment_status || '').replace(/_/g, ' ')}</small></>} />
-        </ListItemButton>
-      ))}
-      {!data.length && <Typography sx={{ p: 3, textAlign: 'center' }} color="text.secondary">No work orders.</Typography>}
-    </List>
+    <Box sx={{ pb: 1 }}>
+      <TabHeader title={`Work orders (${data.length})`} onRefresh={reload} />
+      <List sx={{ py: 0.5 }}>
+        {data.map((w) => (
+          <Card key={w.id} sx={{ ...clickableCardSx, mx: 2, mb: 1.75 }}>
+            <ListItemButton onClick={() => nav(`/wo/${w.id}`)} sx={{ py: 1.75, px: 2 }}>
+              <ListItemText
+                primary={<Typography fontWeight={800} variant="body1">{w.work_order_ref || w.title || w.id}</Typography>}
+                secondary={
+                  <>
+                    <Typography component="span" variant="body2" color="text.primary" sx={{ display: 'block', mt: 0.5 }}>{w.title || w.description}</Typography>
+                    <Box mt={1}><StatusChip value={w.assignment_status} /></Box>
+                  </>
+                } />
+            </ListItemButton>
+          </Card>
+        ))}
+      </List>
+      {!data.length && <EmptyState icon={<AssignmentIcon fontSize="inherit" />} title="No work orders" description="Nothing assigned to you yet." />}
+    </Box>
   );
 }
 
@@ -134,25 +164,22 @@ function ApprovalsTab() {
       .finally(() => setBusy(null));
   };
 
-  if (data === null) return <Loading />;
+  if (data === null) return <LoadingState label="Loading approvals…" />;
   return (
-    <List>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1.5, pt: 1 }}>
-        <Typography variant="subtitle1" fontWeight={700}>Awaiting my decision ({data.length})</Typography>
-        <Button size="small" startIcon={<RefreshIcon />} onClick={load}>Refresh</Button>
-      </Box>
+    <Box sx={{ pb: 1 }}>
+      <TabHeader title={`Awaiting my decision (${data.length})`} onRefresh={load} />
       {data.map((a) => {
         const due = a.due_at ? Math.round((new Date(a.due_at).getTime() - Date.now()) / 3.6e6) : null;
         const ref = a.case_number || `${a.entity_type || 'item'} ${String(a.entity_id || '').slice(0, 8)}`;
         const working = busy === a.step_decision_id;
         return (
-          <Card key={a.step_decision_id} variant="outlined" sx={{ mx: 1.5, my: 1 }}>
+          <Card key={a.step_decision_id} sx={{ mx: 2, my: 1.25 }}>
             <CardContent sx={{ pb: 1.5 }}>
               <Box display="flex" gap={0.75} alignItems="center" flexWrap="wrap" mb={0.5}>
-                <b>{ref}</b>
-                {a.case_priority && <Chip size="small" label={a.case_priority} color={PRIO[a.case_priority]} sx={{ height: 18 }} />}
+                <Typography component="span" fontWeight={700} variant="body2">{ref}</Typography>
+                {a.case_priority && <PriorityChip value={a.case_priority} />}
                 {due !== null && <Chip size="small" variant="outlined" color={due <= 0 ? 'error' : due < 24 ? 'warning' : 'default'}
-                  label={due <= 0 ? 'overdue' : due < 24 ? `due ${due}h` : `due ${Math.round(due / 24)}d`} sx={{ height: 18 }} />}
+                  label={due <= 0 ? 'overdue' : due < 24 ? `due ${due}h` : `due ${Math.round(due / 24)}d`} sx={{ height: 20 }} />}
               </Box>
               <Typography variant="body2" fontWeight={600}>{a.case_title || a.policy_name || 'Approval request'}</Typography>
               <Typography variant="caption" color="text.secondary">
@@ -166,8 +193,8 @@ function ApprovalsTab() {
           </Card>
         );
       })}
-      {!data.length && <Typography sx={{ p: 4, textAlign: 'center' }} color="text.secondary">No approvals waiting on you. 👍</Typography>}
-    </List>
+      {!data.length && <EmptyState icon={<FactCheckIcon fontSize="inherit" />} title="Nothing waiting on you" description="You're fully caught up on approvals." />}
+    </Box>
   );
 }
 
@@ -175,37 +202,37 @@ function AccountTab() {
   const nav = useNavigate(); const { user, logout } = useAuth(); const conn = getConn()!;
   const meta = MODES.find((m) => m.mode === conn.mode);
   return (
-    <Box sx={{ p: 3, textAlign: 'center' }}>
-      <Avatar sx={{ width: 64, height: 64, mx: 'auto', mb: 1, bgcolor: meta?.color }}>{(user?.name || '?')[0]}</Avatar>
-      <Typography variant="h6">{user?.name || user?.email || user?.username}</Typography>
-      <Chip label={meta?.title} size="small" sx={{ mt: 1 }} />
+    <Box sx={{ p: 3 }}>
+      <Card sx={{ textAlign: 'center', p: 4, mb: 3.5, background: `linear-gradient(180deg, ${meta?.color}10 0%, #ffffff 45%)` }}>
+        <Avatar sx={{ width: 84, height: 84, mx: 'auto', mb: 2, background: meta?.gradient, fontSize: 32, boxShadow: `0 8px 20px ${meta?.color}55` }}>
+          {(user?.name || user?.email || '?')[0]?.toUpperCase()}
+        </Avatar>
+        <Typography variant="h6" fontWeight={800} fontSize="1.2rem">{user?.name || user?.email || user?.username}</Typography>
+        {user?.email && user?.name && <Typography variant="body2" color="text.secondary">{user.email}</Typography>}
+        <Chip label={meta?.title} size="small" sx={{ mt: 2, bgcolor: meta?.color, color: '#fff', fontWeight: 700 }} />
+      </Card>
+      <Button fullWidth variant="outlined" size="large" sx={{ mb: 1.5 }} onClick={() => { logout(); clearConn(); nav('/connect'); }}>Switch connection</Button>
+      <Button fullWidth color="error" size="large" onClick={() => { logout(); nav('/login'); }}>Sign out</Button>
       <Divider sx={{ my: 3 }} />
-      <Button fullWidth variant="outlined" sx={{ mb: 1 }} onClick={() => { logout(); clearConn(); nav('/connect'); }}>Switch connection</Button>
-      <Button fullWidth color="error" onClick={() => { logout(); nav('/login'); }}>Sign out</Button>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center' }}>BPM Portal · Mobile</Typography>
     </Box>
   );
 }
 
-const SLA = [
-  { key: 'on_track', label: 'On track', color: '#2e7d32' },
-  { key: 'at_risk', label: 'At risk', color: '#ed6c02' },
-  { key: 'breached', label: 'Breached', color: '#d32f2f' },
-  { key: 'paused', label: 'Paused', color: '#0288d1' },
-];
-
-const PRIO_COLOR: Record<string, string> = { critical: '#d32f2f', high: '#ed6c02', medium: '#0288d1', low: '#757575' };
+const SLA_STAT_COLOR: Record<string, string> = { Open: '#1976d2', Breached: '#d32f2f', 'At risk': '#ed6c02', 'Due ≤24h': '#6a1b9a' };
+const PRIO_COLOR: Record<string, string> = { critical: '#d32f2f', high: '#ed6c02', medium: '#1976d2', low: '#757575' };
 
 function InsightsTab() {
   const navigate = useNavigate();
   const [d, setD] = useState<any>(null);
   const load = () => api.get('/cases/my-queue/stats').then((r) => setD(r.data)).catch(() => setD(null));
   useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, []);
-  if (!d) return <Loading />;
+  if (!d) return <LoadingState label="Loading insights…" />;
   const STATS = [
-    { label: 'Open', value: d.open, color: '#1565c0' },
-    { label: 'Breached', value: d.breached, color: '#d32f2f' },
-    { label: 'At risk', value: d.atRisk, color: '#ed6c02' },
-    { label: 'Due ≤24h', value: d.dueSoon, color: '#6a1b9a' },
+    { label: 'Open', value: d.open },
+    { label: 'Breached', value: d.breached },
+    { label: 'At risk', value: d.atRisk },
+    { label: 'Due ≤24h', value: d.dueSoon },
   ];
   const maxP = Math.max(1, ...(d.byPriority || []).map((p: any) => p.count));
   const dueLabel = (s: any) => {
@@ -216,15 +243,12 @@ function InsightsTab() {
   };
   return (
     <Box sx={{ p: 2 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-        <Typography variant="subtitle1" fontWeight={700}>My Queue</Typography>
-        <Button size="small" startIcon={<RefreshIcon />} onClick={load}>Refresh</Button>
-      </Box>
-      <Grid container spacing={1.5} mb={2}>
+      <TabHeader title="My Queue" onRefresh={load} />
+      <Grid container spacing={1.5} mb={2.5} mt={0.25}>
         {STATS.map((s) => (
           <Grid item xs={3} key={s.label}>
-            <Card variant="outlined"><CardContent sx={{ py: 1.25, px: 1, textAlign: 'center', '&:last-child': { pb: 1.25 } }}>
-              <Typography variant="h5" fontWeight={800} sx={{ color: s.value ? s.color : 'text.disabled' }}>{s.value}</Typography>
+            <Card><CardContent sx={{ py: 1.75, px: 1, textAlign: 'center', '&:last-child': { pb: 1.75 } }}>
+              <Typography variant="h5" fontWeight={800} sx={{ color: s.value ? SLA_STAT_COLOR[s.label] : 'text.disabled' }}>{s.value}</Typography>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>{s.label}</Typography>
             </CardContent></Card>
           </Grid>
@@ -232,7 +256,7 @@ function InsightsTab() {
       </Grid>
 
       {(d.byPriority || []).length > 0 && (
-        <Card variant="outlined" sx={{ mb: 2 }}><CardContent>
+        <Card sx={{ mb: 2.5 }}><CardContent>
           <Typography variant="subtitle2" fontWeight={700} mb={1}>Open by priority</Typography>
           {['critical', 'high', 'medium', 'low'].map((p) => {
             const row = (d.byPriority || []).find((x: any) => x.priority === p); if (!row) return null;
@@ -247,11 +271,11 @@ function InsightsTab() {
         </CardContent></Card>
       )}
 
-      <Card variant="outlined" sx={{ mb: 2 }}><CardContent sx={{ '&:last-child': { pb: 1 } }}>
+      <Card sx={{ mb: 2.5 }}><CardContent sx={{ '&:last-child': { pb: 1 } }}>
         <Typography variant="subtitle2" fontWeight={700} mb={1}>Needs attention first</Typography>
         {(d.attention || []).length === 0 ? <Typography variant="body2" color="text.secondary">Nothing urgent — you're on top of it. 👍</Typography>
           : (d.attention || []).map((s: any) => (
-            <Box key={s.id} display="flex" alignItems="center" gap={1} py={0.6} sx={{ cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }} onClick={() => navigate(`/case/${s.id}`)}>
+            <Box key={s.id} display="flex" alignItems="center" gap={1} py={0.6} sx={{ cursor: 'pointer', borderBottom: '1px solid', borderColor: 'divider' }} onClick={() => navigate(`/case/${s.id}`)}>
               <Box sx={{ width: 6, height: 32, borderRadius: 3, bgcolor: PRIO_COLOR[s.priority] || '#999' }} />
               <Box flex={1} minWidth={0}>
                 <Typography variant="body2" fontWeight={600} noWrap>{s.case_number} · {s.title}</Typography>
@@ -290,15 +314,21 @@ export default function Home() {
       ]
     : [{ icon: <AssignmentIcon />, label: 'Work Orders', el: <WorkOrdersTab /> }, { icon: <PersonIcon />, label: 'Account', el: <AccountTab /> }];
   return (
-    <Box sx={{ pb: 8 }}>
-      <AppBar position="sticky" sx={{ bgcolor: meta?.color }}>
-        <Toolbar variant="dense"><Typography variant="h6" fontWeight={700}>BPM Field</Typography><Box flex={1} />
-          <Typography variant="caption">{meta?.title}</Typography></Toolbar>
+    <Box sx={{ pb: 10, minHeight: '100dvh', bgcolor: 'background.default' }}>
+      <AppBar position="sticky" elevation={0} sx={{ background: meta?.gradient }}>
+        <Toolbar sx={{ gap: 1.25, minHeight: 64, py: 1 }}>
+          <Box component="img" src="/icon.svg" alt="" sx={{ width: 30, height: 30, borderRadius: 1 }} />
+          <Typography variant="h6" fontWeight={800} sx={{ fontSize: 19 }}>BPM Field</Typography>
+          <Box flex={1} />
+          {/* Translucent (not meta.color) so it stays visible against a same-hue AppBar. */}
+          <Chip label={meta?.title} size="small"
+            sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700, height: 26, px: 0.5, border: '1px solid rgba(255,255,255,0.32)' }} />
+        </Toolbar>
       </AppBar>
       <Box>{tabs[tab].el}</Box>
-      <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }} elevation={8}>
-        <BottomNavigation showLabels value={tab} onChange={(_, v) => setTab(v)}>
-          {tabs.map((t, i) => <BottomNavigationAction key={i} label={t.label} icon={t.icon} />)}
+      <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTopLeftRadius: 18, borderTopRightRadius: 18, overflow: 'hidden' }} elevation={12}>
+        <BottomNavigation showLabels value={tab} onChange={(_, v) => setTab(v)} sx={{ height: 72 }}>
+          {tabs.map((t, i) => <BottomNavigationAction key={i} label={t.label} icon={t.icon} sx={{ pt: 1.25 }} />)}
         </BottomNavigation>
       </Paper>
     </Box>
