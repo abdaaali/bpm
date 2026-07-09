@@ -1,15 +1,15 @@
 import { test, expect } from '@playwright/test';
-import { getContractorUser, loginAsContractor, trackErrors } from './helpers';
+import { getContractorUser, loginAsContractor } from '../helpers/auth';
+import { trackErrors } from '../helpers/api';
 
-// Flow: app opens, auth is required, login works.
-test('unauthenticated visitor is redirected to login', async ({ page }) => {
+test('contractor portal: unauthenticated visitor is redirected to login', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByText('Contractor Portal')).toBeVisible();
   await expect(page.getByLabel('Email Address')).toBeVisible();
 });
 
-test('login works with valid credentials', async ({ page }) => {
+test('contractor portal: login works with valid credentials', async ({ page }) => {
   const errors = trackErrors(page);
   const user = getContractorUser();
   await loginAsContractor(page, user);
@@ -18,7 +18,7 @@ test('login works with valid credentials', async ({ page }) => {
   expect(errors.errors, errors.errors.join('\n')).toEqual([]);
 });
 
-test('login fails gracefully with invalid credentials', async ({ page }) => {
+test('contractor portal: invalid login fails gracefully', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('Email Address').fill('alpha.supervisor@alpha-field.example.com');
   await page.getByLabel('Password').fill('wrong-password-123');
