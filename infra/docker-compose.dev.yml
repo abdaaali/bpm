@@ -2,3 +2,10 @@ services:
   external-api:
     ports:
       - "3007:3007"
+  bpm-orchestrator:
+    # Normally internal-only (reached via api-gateway). Exposed here for local dev
+    # so Playwright's backend-workflow project can call orchestrator-only routes
+    # that api-gateway doesn't proxy (e.g. the approval-service -> orchestrator
+    # approval-result callback), the same way external-api is exposed above.
+    ports:
+      - "3003:3003"

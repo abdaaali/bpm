@@ -14,15 +14,20 @@ export class ProcessDefinitionService {
     private readonly audit: AuditService,
   ) {}
 
-  async findAll(tenantId: string, page = 1, pageSize = 20) {
+  async findAll(tenantId: string, page = 1, pageSize = 20, includeArchived = false) {
     const { limit, offset } = this.db.paginate(page, pageSize);
+    // Archived definitions (e.g. retired test/regression fixtures) are excluded
+    // by default so they don't crowd out real draft/active ones on the default
+    // list page — callers that need them (audit/history views) can pass
+    // includeArchived=true explicitly.
+    const where = includeArchived ? `tenant_id=$1` : `tenant_id=$1 AND status != 'archived'`;
     const [rows, count] = await Promise.all([
       this.db.query(
         `SELECT id, tenant_id, name, slug, description, category, version, status, config, bpmn_xml IS NOT NULL as has_xml, created_at, updated_at
-         FROM process_definitions WHERE tenant_id=$1 ORDER BY name, version DESC LIMIT $2 OFFSET $3`,
+         FROM process_definitions WHERE ${where} ORDER BY name, version DESC LIMIT $2 OFFSET $3`,
         [tenantId, limit, offset],
       ),
-      this.db.query(`SELECT COUNT(*) FROM process_definitions WHERE tenant_id=$1`, [tenantId]),
+      this.db.query(`SELECT COUNT(*) FROM process_definitions WHERE ${where}`, [tenantId]),
     ]);
     return { data: rows.rows, total: parseInt(count.rows[0].count), page, pageSize };
   }

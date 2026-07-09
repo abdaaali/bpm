@@ -109,6 +109,22 @@ export class ProcessInstanceService {
     const fromEl = getElementById(bpmnProcess, fromNodeId);
 
     if (!fromEl || fromEl.type === 'endEvent') {
+      if (branchToken) {
+        // This execution is one branch of a still-open fork (see
+        // gateway_forks) that reached an end event instead of arriving at the
+        // fork's join. Ending this token here must NOT complete the whole
+        // instance — sibling branches may still be running; only a join
+        // resolving back to branchToken=null (or an execution that was never
+        // inside a fork) is allowed to decide the instance is finished.
+        // Known limitation: a branch that bypasses its fork's join like this
+        // never registers a gateway_arrivals row, so if that join is still
+        // waiting on this branch specifically, it now waits forever — a
+        // pre-existing modeling/engine gap (asymmetric fork branches aren't
+        // fully supported), not something this fix attempts to solve. This
+        // fix only stops that gap from corrupting the rest of the instance.
+        this.logger.warn(`Instance ${instanceId} branch reached end event ${fromNodeId} while still part of an open fork — ending this branch only, not the whole instance`);
+        return;
+      }
       // Complete the instance
       await this.db.query(
         `UPDATE process_instances SET status='completed', completed_at=NOW(), updated_at=NOW() WHERE id=$1`,
@@ -221,7 +237,7 @@ export class ProcessInstanceService {
       // C2 — a userTask flagged formKey="approval" is delegated to approval-service
       // (the process parks here until a decision arrives) rather than becoming an inbox task.
       if (fromEl.formKey === 'approval') {
-        const parked = await this.delegateApproval(tenantId, instanceId, fromEl, variables, actorId);
+        const parked = await this.delegateApproval(tenantId, instanceId, fromEl, variables, actorId, branchToken);
         if (parked) return;
       }
       await this.createTask(tenantId, instanceId, fromEl, variables, actorId, branchToken);
@@ -290,7 +306,10 @@ export class ProcessInstanceService {
    * this node (no advance). Returns false to fall back to a normal task if no
    * policy exists or the call fails (fail-open — never dead-end the process).
    */
-  private async delegateApproval(tenantId: string, instanceId: string, el: any, variables: any, actorId?: string): Promise<boolean> {
+  private async delegateApproval(
+    tenantId: string, instanceId: string, el: any, variables: any, actorId?: string,
+    branchToken: { forkId: string; flowId: string } | null = null,
+  ): Promise<boolean> {
     try {
       const meta = await this.db.query(
         `SELECT pd.slug, pi.case_id, pi.initiator_id,
@@ -319,7 +338,12 @@ export class ProcessInstanceService {
           ...(variables || {}),
           risk_level: row.risk_level, change_type: row.change_type,
           priority: row.priority, impact: row.impact, urgency: row.urgency,
-          process: { instanceId, nodeId: el.id },
+          // forkId/flowId let approvalResult() re-attach this branch to its
+          // fork's join synchronization when the decision resumes the process
+          // (see approval-service's resumeProcess, which echoes this context
+          // straight back) — without them, a resumed branch has no fork
+          // context and skips join synchronization entirely (Bug 1).
+          process: { instanceId, nodeId: el.id, forkId: branchToken?.forkId ?? null, flowId: branchToken?.flowId ?? null },
         },
       }, {
         headers: { 'x-tenant-id': tenantId, ...(requester ? { 'x-user-id': requester } : {}) },
@@ -409,10 +433,17 @@ export class ProcessInstanceService {
    * task on that node, then advances. Reuses the same engine path as task
    * completion.
    */
-  async approvalResult(tenantId: string, instanceId: string, body: { nodeId: string; outcome: 'approved' | 'rejected'; approvalInstanceId?: string }) {
+  async approvalResult(tenantId: string, instanceId: string, body: {
+    nodeId: string; outcome: 'approved' | 'rejected'; approvalInstanceId?: string;
+    // See delegateApproval — echoed back from the approval context so this
+    // branch can resume under the same fork/flow it was parked from instead
+    // of losing join synchronization (Bug 1).
+    forkId?: string | null; flowId?: string | null;
+  }, actorId?: string) {
     const instance = await this.findOne(tenantId, instanceId);
     if (instance.status !== 'active' || !instance.bpmn_xml) return instance;
     const bpmnProcess: BpmnProcess = parseBpmn(instance.bpmn_xml);
+    const branchToken = body.forkId && body.flowId ? { forkId: body.forkId, flowId: body.flowId } : null;
 
     const decision = body.outcome === 'approved' ? 'approve' : 'reject';
     const mergedVars = { ...(instance.variables || {}), decision, approved: body.outcome === 'approved', approvalOutcome: body.outcome };
@@ -430,7 +461,7 @@ export class ProcessInstanceService {
     const outFlows = getOutgoingFlows(bpmnProcess, body.nodeId);
     for (const flow of outFlows) {
       await this.db.query(`UPDATE process_instances SET current_node_id=$1, updated_at=NOW() WHERE id=$2`, [flow.target, instanceId]);
-      await this.advance(tenantId, instanceId, flow.target, mergedVars, bpmnProcess);
+      await this.advance(tenantId, instanceId, flow.target, mergedVars, bpmnProcess, actorId, branchToken);
     }
     return this.findOne(tenantId, instanceId);
   }

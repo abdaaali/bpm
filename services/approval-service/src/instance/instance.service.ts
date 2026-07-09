@@ -61,7 +61,11 @@ export class InstanceService {
     try {
       await axios.post(
         `${orchUrl}/instances/${proc.instanceId}/approval-result`,
-        { nodeId: proc.nodeId, outcome, approvalInstanceId: instance.id },
+        // forkId/flowId round-trip the branch context the orchestrator set
+        // when it delegated this node (see delegateApproval) — without them,
+        // the resumed branch loses join synchronization with its sibling
+        // fork branches.
+        { nodeId: proc.nodeId, outcome, approvalInstanceId: instance.id, forkId: proc.forkId ?? null, flowId: proc.flowId ?? null },
         { headers: { 'x-tenant-id': instance.tenant_id }, timeout: 5000 },
       );
     } catch (e: any) {

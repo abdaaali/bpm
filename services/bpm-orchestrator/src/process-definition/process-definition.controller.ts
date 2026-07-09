@@ -13,7 +13,8 @@ export class ProcessDefinitionController {
     @Headers() h: Record<string, string>,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('pageSize', new DefaultValuePipe(20), ParseIntPipe) pageSize: number,
-  ) { return this.svc.findAll(this.tenant(h), page, pageSize); }
+    @Query('includeArchived') includeArchived?: string,
+  ) { return this.svc.findAll(this.tenant(h), page, pageSize, includeArchived === 'true'); }
 
   @Get('slug/:slug')
   findBySlug(@Headers() h: Record<string, string>, @Param('slug') slug: string) {

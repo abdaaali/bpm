@@ -32,7 +32,7 @@ export class ProcessInstanceController {
 
   @Post(':id/approval-result')
   approvalResult(@Headers() h: Record<string, string>, @Param('id') id: string, @Body() body: any) {
-    return this.svc.approvalResult(this.tenant(h), id, body);
+    return this.svc.approvalResult(this.tenant(h), id, body, this.actor(h));
   }
 
   @Patch(':id/suspend')
