@@ -11,9 +11,11 @@ import AddIcon from '@mui/icons-material/Add';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
+import InboxIcon from '@mui/icons-material/Inbox';
 import { processApi } from '../../api/client';
 import { format } from 'date-fns';
 import { PROCESS_INSTANCE_STATUS_COLORS as STATUS_COLORS } from '../../utils/statusColors';
+import EmptyState from '../../components/EmptyState';
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -158,8 +160,8 @@ export default function ProcessInstances() {
                 ))}
                 {!data?.data?.length && (
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">No requests found</Typography>
+                    <TableCell colSpan={6}>
+                      <EmptyState icon={<InboxIcon fontSize="inherit" />} title="No requests found" description="Try a different filter, or start a new request from the Service Catalog." />
                     </TableCell>
                   </TableRow>
                 )}
