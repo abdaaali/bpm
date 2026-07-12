@@ -146,8 +146,8 @@ services:
       /bin/sh -c "
       mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY};
       mc mb --ignore-existing local/bpm-attachments;
-      mc anonymous set download local/bpm-attachments;
-      echo 'MinIO bucket ready';
+      mc anonymous set none local/bpm-attachments;
+      echo 'MinIO bucket ready (private — all downloads go through presigned URLs)';
       "
 
   keycloak:
