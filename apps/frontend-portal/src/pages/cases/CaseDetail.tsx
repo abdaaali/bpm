@@ -8,7 +8,6 @@ import {
   Checkbox, FormControlLabel, Autocomplete, Stack, Stepper, Step,
   StepLabel, Tooltip, Tabs, Tab, IconButton, Paper, Snackbar,
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PersonIcon from '@mui/icons-material/Person';
 import GroupIcon from '@mui/icons-material/Group';
 import DevicesIcon from '@mui/icons-material/Devices';
@@ -27,6 +26,7 @@ import LinkIcon from '@mui/icons-material/Link';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { caseApi, orgApi, processApi, rcaApi, datahubApi, contractorApi } from '../../api/client';
 import { useAccess } from '../../auth/useAccess';
+import PageHeader from '../../components/PageHeader';
 import ProcessActionPanel from '../inbox/ProcessActionPanel';
 import RcaPanel from './RcaPanel';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -427,19 +427,18 @@ export default function CaseDetail() {
 
   return (
     <Box>
-      {/* ── Breadcrumb ── */}
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/cases')} sx={{ mb: 2 }}>
-        Back to Cases
-      </Button>
-
       {/* ── Header ── */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2} flexWrap="wrap" gap={2}>
-        <Box>
-          <Box display="flex" alignItems="center" gap={1.5} mb={0.5}>
-            <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: typeColor + '22', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <TypeIconComp sx={{ color: typeColor, fontSize: 20 }} />
-            </Box>
-            <Typography variant="h5" fontWeight={700}>{c.case_number}</Typography>
+      <PageHeader
+        backTo="/cases"
+        backLabel="Back to Cases"
+        icon={
+          <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: typeColor + '22', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <TypeIconComp sx={{ color: typeColor, fontSize: 20 }} />
+          </Box>
+        }
+        title={c.case_number}
+        chips={
+          <>
             <Chip label={c.type} size="small" sx={{ bgcolor: typeColor + '22', color: typeColor, fontWeight: 600, textTransform: 'capitalize' }} />
             <Chip label={c.priority} size="small" sx={{ bgcolor: PRIORITY_BG[c.priority], color: 'white', fontWeight: 700, textTransform: 'uppercase' }} />
             {c.breached && <Chip label="SLA Breached" size="small" color="error" variant="outlined" />}
@@ -451,41 +450,41 @@ export default function CaseDetail() {
                 <Chip label={`Auto · ${c.context?.autoFromCase || 'rule'}`} size="small" color="info" variant="outlined" />
               </Tooltip>
             )}
-          </Box>
-          <Typography variant="h6" color="text.secondary">{c.title}</Typography>
-        </Box>
-
-        {/* Contextual action buttons */}
-        <Stack direction="row" spacing={1} flexWrap="wrap">
-          {!c.major_incident && ['incident', 'fault'].includes(c.type) && !['resolved','closed','cancelled'].includes(c.status) && (
-            <Button variant="contained" color="error" size="small"
-              startIcon={<WarningAmberIcon />} onClick={() => setMajorOpen(true)}>
-              Declare Major Incident
-            </Button>
-          )}
-          {!c.escalated && !c.major_incident && ['in_progress', 'open'].includes(c.status) && c.type === 'incident' && (
-            <Button variant="outlined" color="warning" size="small"
-              onClick={() => escalateMut.mutate()}>
-              Escalate
-            </Button>
-          )}
-          {!['resolved','closed','cancelled'].includes(c.status) && (
-            <Button variant="outlined" size="small" startIcon={<PersonIcon />}
-              onClick={() => setReassignOpen(true)}>
-              Reassign
-            </Button>
-          )}
-          {actions.map(act => (
-            <Button key={act.targetStatus}
-              variant={act.variant || 'outlined'}
-              color={act.color || 'inherit'}
-              size="small"
-              onClick={() => setActionDialog(act)}>
-              {act.label}
-            </Button>
-          ))}
-        </Stack>
-      </Box>
+          </>
+        }
+        subtitle={<Typography variant="h6" color="text.secondary">{c.title}</Typography>}
+        actions={
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            {!c.major_incident && ['incident', 'fault'].includes(c.type) && !['resolved','closed','cancelled'].includes(c.status) && (
+              <Button variant="contained" color="error" size="small"
+                startIcon={<WarningAmberIcon />} onClick={() => setMajorOpen(true)}>
+                Declare Major Incident
+              </Button>
+            )}
+            {!c.escalated && !c.major_incident && ['in_progress', 'open'].includes(c.status) && c.type === 'incident' && (
+              <Button variant="outlined" color="warning" size="small"
+                onClick={() => escalateMut.mutate()}>
+                Escalate
+              </Button>
+            )}
+            {!['resolved','closed','cancelled'].includes(c.status) && (
+              <Button variant="outlined" size="small" startIcon={<PersonIcon />}
+                onClick={() => setReassignOpen(true)}>
+                Reassign
+              </Button>
+            )}
+            {actions.map(act => (
+              <Button key={act.targetStatus}
+                variant={act.variant || 'outlined'}
+                color={act.color || 'inherit'}
+                size="small"
+                onClick={() => setActionDialog(act)}>
+                {act.label}
+              </Button>
+            ))}
+          </Stack>
+        }
+      />
 
       {/* ── Major Incident banner ── */}
       {c.major_incident && (
