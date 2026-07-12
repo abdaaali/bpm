@@ -82,6 +82,7 @@ export const theme = createTheme({
         root: {
           borderBottomColor: NEUTRAL[200],
           fontSize: '0.8125rem',
+          fontWeight: 500,
           fontVariantNumeric: 'tabular-nums',
         },
         head: { fontWeight: 700, color: NEUTRAL[600], fontSize: '0.6875rem', letterSpacing: '0.04em', textTransform: 'uppercase' },
