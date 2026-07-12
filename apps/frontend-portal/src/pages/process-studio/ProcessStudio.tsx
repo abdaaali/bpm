@@ -9,71 +9,28 @@ import {
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import PublishIcon from '@mui/icons-material/Publish';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CloseIcon from '@mui/icons-material/Close';
-import { processApi, approvalApi } from '../../api/client';
+import { processApi } from '../../api/client';
 import PropertiesPanel from './PropertiesPanel';
+import BackButton from '../../components/BackButton';
 
-interface CheckFinding { id: string; message: string; severity: 'error' | 'warning'; }
-
-/** Walk the model and surface things that would make a published process misbehave. */
-function runChecks(modeler: any, hasApprovalPolicy: boolean): CheckFinding[] {
-  const out: CheckFinding[] = [];
-  if (!modeler) return out;
-  let els: any[] = [];
-  try { els = modeler.get('elementRegistry').getAll(); } catch { return out; }
-  const ffOf = (bo: any): any[] => {
-    const raw = bo?.$attrs?.['camunda:formFields'] || bo?.$attrs?.['activiti:formFields'];
-    if (!raw) return [];
-    try { return JSON.parse(decodeURIComponent(raw)); } catch { return []; }
-  };
-  els.forEach((el: any) => {
-    const t: string = el.type?.replace('bpmn:', '') || '';
-    const bo = el.businessObject;
-    if (!t || t === 'Process' || t === 'Collaboration' || t === 'SequenceFlow' || t.startsWith('Label')) return;
-    const label = bo?.name || el.id;
-    const inc = (el.incoming || []).length;
-    const outg = (el.outgoing || []).length;
-    if (t !== 'StartEvent' && (t.endsWith('Task') || t.includes('Gateway') || t.includes('Event')) && inc === 0)
-      out.push({ id: el.id, message: `"${label}" has no incoming flow`, severity: 'error' });
-    if (t !== 'EndEvent' && (t.endsWith('Task') || t.includes('Gateway') || (t.includes('Event') && t !== 'EndEvent')) && outg === 0)
-      out.push({ id: el.id, message: `"${label}" has no outgoing flow`, severity: 'error' });
-
-    if (t === 'ExclusiveGateway' && outg > 1) {
-      const missing = (el.outgoing || []).filter((f: any) => !f.businessObject?.conditionExpression?.body);
-      if (missing.length > 1)
-        out.push({ id: el.id, message: `Gateway "${label}" has ${missing.length} branches with no condition`, severity: 'warning' });
-    }
-
-    if (t === 'UserTask') {
-      const fk = bo?.$attrs?.['camunda:formKey'] || bo?.$attrs?.['activiti:formKey'];
-      if (fk === 'approval') {
-        if (!hasApprovalPolicy)
-          out.push({ id: el.id, message: `Approval gate "${label}" has no approval policy — it will fall back to a manual task`, severity: 'error' });
-      } else if (!bo?.$attrs?.['camunda:assignee'] && !bo?.$attrs?.['camunda:candidateGroups']) {
-        out.push({ id: el.id, message: `Task "${label}" has no assignee or candidate group`, severity: 'warning' });
-      }
-      ffOf(bo).forEach((f: any) => {
-        if (f.type === 'select' && !(f.options || '').trim())
-          out.push({ id: el.id, message: `Dropdown "${f.label || f.key}" in "${label}" has no options`, severity: 'warning' });
-      });
-    }
-
-    if (t === 'StartEvent') {
-      const ff = ffOf(bo);
-      if (ff.length === 0)
-        out.push({ id: el.id, message: `Start event captures no data (no start form)`, severity: 'warning' });
-      ff.forEach((f: any) => {
-        if (f.type === 'select' && !(f.options || '').trim())
-          out.push({ id: el.id, message: `Start dropdown "${f.label || f.key}" has no options`, severity: 'warning' });
-      });
-    }
-  });
-  return out;
+// Mirrors services/bpm-orchestrator/src/engine/validation.ts's ValidationFinding.
+// This is a TYPE SHAPE only — the actual validation RULES live exclusively on
+// the backend (POST /definitions/:id/validate) and are also enforced there on
+// publish, so there is exactly one rule engine, never two to keep in sync.
+// See docs/bpmn-compatibility-contract.md.
+export interface ValidationFinding {
+  code: string;
+  severity: 'error' | 'warning';
+  elementId?: string;
+  elementName?: string;
+  message: string;
+  remediation: string;
+  blocking: boolean;
 }
 
 // Full BPMN 2.0 template including bpmndi:BPMNDiagram (required by bpmn-js v7+)
@@ -334,11 +291,11 @@ export default function ProcessStudio() {
   const [modeler, setModeler] = useState<any>(null);
   const [snack, setSnack] = useState('');
   const [initError, setInitError] = useState('');
-  const [checks, setChecks] = useState<CheckFinding[] | null>(null);
+  const [checks, setChecks] = useState<ValidationFinding[] | null>(null);
+  const [validating, setValidating] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   const { data: def, isLoading } = useQuery(['process-def', id], () => processApi.getDef(id!));
-  const { data: policiesData } = useQuery('approval-policies', () => approvalApi.listPolicies(1, 100), { staleTime: 30000 });
-  const hasApprovalPolicy = (policiesData?.data || []).some((p: any) => p.process_key === def?.slug && p.active);
 
   const goToElement = (elId: string) => {
     const m = modelerRef.current; if (!m) return;
@@ -347,7 +304,28 @@ export default function ProcessStudio() {
       if (el) { m.get('selection').select(el); m.get('canvas').scrollToElement(el); }
     } catch { /* ignore */ }
   };
-  const errorCount = (checks || []).filter(c => c.severity === 'error').length;
+  const errorCount = (checks || []).filter(c => c.blocking).length;
+
+  // Shared validation: the ONLY rule engine is server-side
+  // (services/bpm-orchestrator/src/engine/validation.ts) — Checks, Publish's
+  // pre-flight, and Publish's own backend enforcement all call the exact same
+  // function, so this can never drift or be bypassed by calling the API
+  // directly. Validates whatever XML is currently on the canvas, saved or not.
+  const runValidation = async (): Promise<ValidationFinding[]> => {
+    if (!modelerRef.current) return [];
+    setValidating(true);
+    try {
+      const { xml } = await modelerRef.current.saveXML({ format: true });
+      const { findings } = await processApi.validateDef(id!, xml);
+      setChecks(findings);
+      return findings;
+    } catch (e: any) {
+      setSnack(`Could not run validation: ${e.response?.data?.message || e.message}`);
+      return [];
+    } finally {
+      setValidating(false);
+    }
+  };
 
   const save = useMutation(async () => {
     if (!modelerRef.current) return { forked: null };
@@ -364,6 +342,7 @@ export default function ProcessStudio() {
     return { forked: null };
   }, {
     onSuccess: (res: any) => {
+      setDirty(false);
       if (res?.forked) {
         setSnack(`Saved as new draft v${res.forked.version} (the published version is unchanged)`);
         qc.invalidateQueries('process-defs');
@@ -372,6 +351,7 @@ export default function ProcessStudio() {
         setSnack('Saved!');
         qc.invalidateQueries(['process-def', id]);
       }
+      runValidation();
     },
     onError: (e: any) => setSnack(`Save failed: ${e.response?.data?.message || e.message}`),
   });
@@ -381,6 +361,15 @@ export default function ProcessStudio() {
       setSnack('Published!');
       qc.invalidateQueries(['process-def', id]);
       qc.invalidateQueries('process-defs');
+    },
+    onError: (e: any) => {
+      // Backend is the final authority — if it rejects publish (e.g. the
+      // canvas was published without an intervening Checks run, or someone
+      // called the API directly), surface exactly what it found rather than
+      // a generic failure.
+      const findings = e.response?.data?.message?.findings || e.response?.data?.findings;
+      if (Array.isArray(findings)) setChecks(findings);
+      setSnack(e.response?.data?.message?.message || e.response?.data?.message || 'Publish failed');
     },
   });
 
@@ -415,7 +404,14 @@ export default function ProcessStudio() {
         // Ensure a diagram layout exists (Flowable/seed exports have none).
         xmlToLoad = normalized.includes('BPMNDiagram') ? normalized : enrichForBpmnJs(normalized);
       }
-      m.importXML(xmlToLoad).catch((e: any) => setInitError(e.message));
+      m.importXML(xmlToLoad)
+        .then(() => {
+          // Baseline validation so the Publish button's disabled state is
+          // known immediately, without forcing a manual Checks click first.
+          runValidation();
+          modelerRef.current?.get('eventBus').on('commandStack.changed', () => setDirty(true));
+        })
+        .catch((e: any) => setInitError(e.message));
     }).catch(e => setInitError(e.message));
 
     return () => {
@@ -432,51 +428,74 @@ export default function ProcessStudio() {
   return (
     // Viewport-height layout: AppBar=64px + padding-top=24px + padding-bottom=24px = 112px
     <Box sx={{ height: 'calc(100vh - 112px)', display: 'flex', flexDirection: 'column' }}>
-      {/* Toolbar */}
+      {/* Toolbar — hierarchy: back -> identity (name, version, status, unsaved) -> actions,
+          ordered by priority (Checks is informational, Save/Publish are the primary actions
+          and visually swap which one is "contained" based on current state). */}
       <Paper elevation={0} sx={{ mb: 1, p: 1, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', flexShrink: 0 }}>
-        <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/processes')}>Back</Button>
-        <Typography variant="h6" sx={{ flexGrow: 1 }}>{def.name}</Typography>
-        <Chip label={`v${def.version}`} size="small" />
+        <BackButton to="/processes" label="Back to Process List" />
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Typography variant="h6" noWrap>{def.name}</Typography>
+        </Box>
+        <Chip label={`v${def.version}`} size="small" variant="outlined" />
         <Chip label={def.status} size="small" color={def.status === 'active' ? 'success' : 'warning'} />
-        <Tooltip title="Check the process for problems before publishing">
-          <Button size="small" variant="outlined" startIcon={<FactCheckIcon />}
-            onClick={() => setChecks(runChecks(modelerRef.current, hasApprovalPolicy))}>
-            Checks
-          </Button>
+        {dirty && <Chip label="Unsaved changes" size="small" color="default" sx={{ fontStyle: 'italic' }} />}
+        <Tooltip title="Re-check this process against the same rules Publish enforces">
+          <span>
+            <Button size="small" variant="outlined" startIcon={<FactCheckIcon />} onClick={runValidation} disabled={validating}>
+              {validating ? 'Checking…' : errorCount > 0 ? `Checks (${errorCount})` : 'Checks'}
+            </Button>
+          </span>
         </Tooltip>
         <Tooltip title={def.status !== 'draft' ? 'This version is published and immutable — saving creates a new editable draft version' : ''}>
-          <Button size="small" variant="outlined" startIcon={<SaveIcon />} onClick={() => save.mutate()} disabled={save.isLoading}>
-            {def.status !== 'draft' ? 'Save as new version' : 'Save'}
+          <Button size="small" variant={dirty ? 'contained' : 'outlined'} startIcon={<SaveIcon />}
+            onClick={() => save.mutate()} disabled={save.isLoading}>
+            {save.isLoading ? 'Saving…' : def.status !== 'draft' ? 'Save as new version' : 'Save'}
           </Button>
         </Tooltip>
         {def.status !== 'active' && (
-          <Button size="small" variant="contained" color="success" startIcon={<PublishIcon />}
-            onClick={() => {
-              const found = runChecks(modelerRef.current, hasApprovalPolicy);
-              const errs = found.filter(c => c.severity === 'error');
-              if (errs.length) { setChecks(found); setSnack(`${errs.length} blocking issue(s) — review Checks before publishing`); return; }
-              publish.mutate();
-            }} disabled={publish.isLoading}>
-            Publish
-          </Button>
+          <Tooltip title={errorCount > 0
+            ? `Publish is blocked — ${errorCount} issue(s) must be fixed first (see Checks below)`
+            : dirty ? 'Save your changes, then publish' : 'Make this version live'}>
+            <span>
+              <Button size="small" variant={!dirty && errorCount === 0 ? 'contained' : 'outlined'} color="success" startIcon={<PublishIcon />}
+                onClick={async () => {
+                  const found = await runValidation();
+                  const errs = found.filter(c => c.blocking);
+                  if (errs.length) { setSnack(`${errs.length} blocking issue(s) — review Checks before publishing`); return; }
+                  publish.mutate();
+                }} disabled={publish.isLoading || validating || errorCount > 0}>
+                {publish.isLoading ? 'Publishing…' : 'Publish'}
+              </Button>
+            </span>
+          </Tooltip>
         )}
       </Paper>
 
-      {/* Publish-readiness findings */}
+      {/* Validation drawer — every finding shown here comes verbatim from the
+          backend rule engine (see engine/validation.ts); nothing is re-derived
+          client-side, so this can never disagree with what Publish enforces. */}
       {checks !== null && (
-        <Paper variant="outlined" sx={{ mb: 1, p: 1, flexShrink: 0, maxHeight: 180, overflowY: 'auto' }}>
+        <Paper variant="outlined" sx={{ mb: 1, p: 1.25, flexShrink: 0, maxHeight: 260, overflowY: 'auto' }}>
           <Box display="flex" alignItems="center" gap={1} mb={0.5}>
             {checks.length === 0
               ? <><CheckCircleIcon color="success" fontSize="small" /><Typography variant="body2">No issues found — ready to publish.</Typography></>
-              : <Typography variant="body2" sx={{ fontWeight: 600 }}>{errorCount} error(s), {checks.length - errorCount} warning(s)</Typography>}
+              : <Typography variant="body2" sx={{ fontWeight: 600 }}>{errorCount} blocking error(s), {checks.length - errorCount} warning(s)</Typography>}
             <Box sx={{ flexGrow: 1 }} />
-            <IconButton size="small" onClick={() => setChecks(null)}><CloseIcon fontSize="small" /></IconButton>
+            <IconButton size="small" onClick={() => setChecks(null)} aria-label="Dismiss validation results"><CloseIcon fontSize="small" /></IconButton>
           </Box>
-          {checks.map((c, i) => (
-            <Box key={i} onClick={() => goToElement(c.id)}
-              sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, py: 0.5, borderRadius: 1, cursor: 'pointer', '&:hover': { bgcolor: '#f5f5f5' } }}>
-              {c.severity === 'error' ? <ErrorOutlineIcon color="error" fontSize="small" /> : <WarningAmberIcon color="warning" fontSize="small" />}
-              <Typography variant="caption">{c.message}</Typography>
+          {[...checks].sort((a, b) => Number(b.blocking) - Number(a.blocking)).map((c, i) => (
+            <Box key={i} onClick={() => c.elementId && goToElement(c.elementId)}
+              sx={{
+                display: 'flex', alignItems: 'flex-start', gap: 1, px: 1, py: 0.75, borderRadius: 1,
+                cursor: c.elementId ? 'pointer' : 'default', '&:hover': c.elementId ? { bgcolor: '#f5f5f5' } : undefined,
+                borderLeft: '3px solid', borderLeftColor: c.blocking ? 'error.main' : 'warning.main', mb: 0.5,
+              }}>
+              {c.blocking ? <ErrorOutlineIcon color="error" fontSize="small" sx={{ mt: 0.25 }} /> : <WarningAmberIcon color="warning" fontSize="small" sx={{ mt: 0.25 }} />}
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="caption" sx={{ display: 'block', fontWeight: 500 }}>{c.message}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{c.remediation}</Typography>
+                <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace', fontSize: 10 }}>{c.code}{c.elementName ? ` · ${c.elementName}` : ''}</Typography>
+              </Box>
             </Box>
           ))}
         </Paper>

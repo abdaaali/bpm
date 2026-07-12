@@ -9,7 +9,6 @@ import {
   DialogContent, DialogActions, IconButton, Tooltip, Divider, Card, CardContent,
   Accordion, AccordionSummary, AccordionDetails, Avatar, Stack, Grid,
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
@@ -21,6 +20,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import CommentIcon from '@mui/icons-material/Comment';
 import { processApi, orgApi } from '../../api/client';
 import { getFormSchema, optionLabel, FieldDef } from './startFormHelpers';
+import BackButton from '../../components/BackButton';
 import { format } from 'date-fns';
 import { useAuth } from '../../auth/AuthContext';
 
@@ -330,9 +330,7 @@ export default function ProcessInstanceDetail() {
       {/* Header */}
       <Paper elevation={0} sx={{ p: 2, mb: 2, flexShrink: 0 }}>
         <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
-          <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/processes/instances')}>
-            Instances
-          </Button>
+          <BackButton to="/processes/instances" label="Back to Process Monitor" />
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             {inst.definition_name}
           </Typography>
