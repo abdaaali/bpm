@@ -17,8 +17,8 @@ export function clearConn() { localStorage.removeItem(KEY); }
 // (Connect cards, Login hero) so those specific spots get some depth without
 // tinting the rest of the app.
 export const MODES: { mode: Mode; title: string; subtitle: string; color: string; gradient: string }[] = [
-  { mode: 'bpm', title: 'BPM Platform', subtitle: 'Cases, SLA & alerts for operators', color: '#1565c0', gradient: 'linear-gradient(135deg, #1565c0 0%, #0d47a1 100%)' },
-  { mode: 'contractor', title: 'Contractor Portal', subtitle: 'Work orders for external field teams', color: '#ef6c00', gradient: 'linear-gradient(135deg, #ff9800 0%, #e65100 100%)' },
+  { mode: 'bpm', title: 'BPM Platform', subtitle: 'Cases, SLA & alerts for operators', color: '#2856c9', gradient: 'linear-gradient(135deg, #2856c9 0%, #163a8f 100%)' },
+  { mode: 'contractor', title: 'Contractor Portal', subtitle: 'Work orders for external field teams', color: '#c65a13', gradient: 'linear-gradient(135deg, #c65a13 0%, #8f3e0a 100%)' },
 ];
 // API + auth bases derived from the connection.
 export const apiBase = (c: Conn) => `${c.server}${c.mode === 'bpm' ? '/api/v1' : '/api/ext'}`;

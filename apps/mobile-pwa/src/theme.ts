@@ -1,6 +1,8 @@
 import { createTheme, Theme } from '@mui/material/styles';
 import { MODES, Mode } from './connection';
 
+const NEUTRAL_50 = '#f8f9fb';
+
 // Same product family as apps/frontend-portal, but pushed noticeably further
 // on this pass: bigger radius, stronger resting shadow, and real hover/press
 // transitions on every interactive control (buttons, list rows, bottom nav) —
@@ -9,7 +11,7 @@ function buildTheme(primary: string): Theme {
   return createTheme({
     palette: {
       primary: { main: primary },
-      background: { default: '#f3f5fa', paper: '#ffffff' },
+      background: { default: NEUTRAL_50, paper: '#ffffff' },
     },
     shape: { borderRadius: 14 },
     typography: {
