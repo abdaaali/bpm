@@ -13,12 +13,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { processApi } from '../../api/client';
 import { format } from 'date-fns';
-
-// ── Status colours ────────────────────────────────────────────────────────────
-
-const STATUS_COLORS: Record<string, any> = {
-  active: 'primary', completed: 'success', suspended: 'warning', terminated: 'error',
-};
+import { PROCESS_INSTANCE_STATUS_COLORS as STATUS_COLORS } from '../../utils/statusColors';
 
 // ── Main component ────────────────────────────────────────────────────────────
 

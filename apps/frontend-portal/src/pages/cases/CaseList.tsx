@@ -13,10 +13,7 @@ import { caseNextAction } from '../../lib/nextAction';
 import NextActionButton from '../../components/NextActionButton';
 import { format } from 'date-fns';
 import { CASE_DOMAINS, domainForType, typeKeysForDomain, labelForType } from '../../config/caseDomains';
-
-const TYPE_COLORS: Record<string, any> = { incident: 'error', problem: 'warning', change: 'info', request: 'success', alarm: 'secondary' };
-const PRIORITY_COLORS: Record<string, any> = { critical: 'error', high: 'warning', medium: 'info', low: 'default' };
-const STATUS_COLORS: Record<string, any> = { new: 'info', open: 'primary', in_progress: 'warning', resolved: 'success', closed: 'default', cancelled: 'default', pending_approval: 'secondary' };
+import { CASE_TYPE_COLORS as TYPE_COLORS, CASE_PRIORITY_COLORS as PRIORITY_COLORS, CASE_STATUS_COLORS as STATUS_COLORS } from '../../utils/statusColors';
 
 export default function CaseList() {
   const navigate = useNavigate();
