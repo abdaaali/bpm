@@ -16,7 +16,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CloseIcon from '@mui/icons-material/Close';
 import { processApi } from '../../api/client';
 import PropertiesPanel from './PropertiesPanel';
-import BackButton from '../../components/BackButton';
+import PageHeader from '../../components/PageHeader';
 
 // Mirrors services/bpm-orchestrator/src/engine/validation.ts's ValidationFinding.
 // This is a TYPE SHAPE only — the actual validation RULES live exclusively on
@@ -431,44 +431,49 @@ export default function ProcessStudio() {
       {/* Toolbar — hierarchy: back -> identity (name, version, status, unsaved) -> actions,
           ordered by priority (Checks is informational, Save/Publish are the primary actions
           and visually swap which one is "contained" based on current state). */}
-      <Paper elevation={0} sx={{ mb: 1, p: 1, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', flexShrink: 0 }}>
-        <BackButton to="/processes" label="Back to Process List" />
-        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Typography variant="h6" noWrap>{def.name}</Typography>
-        </Box>
-        <Chip label={`v${def.version}`} size="small" variant="outlined" />
-        <Chip label={def.status} size="small" color={def.status === 'active' ? 'success' : 'warning'} />
-        {dirty && <Chip label="Unsaved changes" size="small" color="default" sx={{ fontStyle: 'italic' }} />}
-        <Tooltip title="Re-check this process against the same rules Publish enforces">
-          <span>
-            <Button size="small" variant="outlined" startIcon={<FactCheckIcon />} onClick={runValidation} disabled={validating}>
-              {validating ? 'Checking…' : errorCount > 0 ? `Checks (${errorCount})` : 'Checks'}
-            </Button>
-          </span>
-        </Tooltip>
-        <Tooltip title={def.status !== 'draft' ? 'This version is published and immutable — saving creates a new editable draft version' : ''}>
-          <Button size="small" variant={dirty ? 'contained' : 'outlined'} startIcon={<SaveIcon />}
-            onClick={() => save.mutate()} disabled={save.isLoading}>
-            {save.isLoading ? 'Saving…' : def.status !== 'draft' ? 'Save as new version' : 'Save'}
-          </Button>
-        </Tooltip>
-        {def.status !== 'active' && (
-          <Tooltip title={errorCount > 0
-            ? `Publish is blocked — ${errorCount} issue(s) must be fixed first (see Checks below)`
-            : dirty ? 'Save your changes, then publish' : 'Make this version live'}>
+      <Paper elevation={0} sx={{ mb: 1, p: 1, flexShrink: 0 }}>
+        <PageHeader
+          backTo="/processes"
+          backLabel="Back to Process List"
+          title={def.name}
+          chips={<>
+            <Chip label={`v${def.version}`} size="small" variant="outlined" />
+            <Chip label={def.status} size="small" color={def.status === 'active' ? 'success' : 'warning'} />
+            {dirty && <Chip label="Unsaved changes" size="small" color="default" sx={{ fontStyle: 'italic' }} />}
+          </>}
+        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          <Tooltip title="Re-check this process against the same rules Publish enforces">
             <span>
-              <Button size="small" variant={!dirty && errorCount === 0 ? 'contained' : 'outlined'} color="success" startIcon={<PublishIcon />}
-                onClick={async () => {
-                  const found = await runValidation();
-                  const errs = found.filter(c => c.blocking);
-                  if (errs.length) { setSnack(`${errs.length} blocking issue(s) — review Checks before publishing`); return; }
-                  publish.mutate();
-                }} disabled={publish.isLoading || validating || errorCount > 0}>
-                {publish.isLoading ? 'Publishing…' : 'Publish'}
+              <Button size="small" variant="outlined" startIcon={<FactCheckIcon />} onClick={runValidation} disabled={validating}>
+                {validating ? 'Checking…' : errorCount > 0 ? `Checks (${errorCount})` : 'Checks'}
               </Button>
             </span>
           </Tooltip>
-        )}
+          <Tooltip title={def.status !== 'draft' ? 'This version is published and immutable — saving creates a new editable draft version' : ''}>
+            <Button size="small" variant={dirty ? 'contained' : 'outlined'} startIcon={<SaveIcon />}
+              onClick={() => save.mutate()} disabled={save.isLoading}>
+              {save.isLoading ? 'Saving…' : def.status !== 'draft' ? 'Save as new version' : 'Save'}
+            </Button>
+          </Tooltip>
+          {def.status !== 'active' && (
+            <Tooltip title={errorCount > 0
+              ? `Publish is blocked — ${errorCount} issue(s) must be fixed first (see Checks below)`
+              : dirty ? 'Save your changes, then publish' : 'Make this version live'}>
+              <span>
+                <Button size="small" variant={!dirty && errorCount === 0 ? 'contained' : 'outlined'} color="success" startIcon={<PublishIcon />}
+                  onClick={async () => {
+                    const found = await runValidation();
+                    const errs = found.filter(c => c.blocking);
+                    if (errs.length) { setSnack(`${errs.length} blocking issue(s) — review Checks before publishing`); return; }
+                    publish.mutate();
+                  }} disabled={publish.isLoading || validating || errorCount > 0}>
+                  {publish.isLoading ? 'Publishing…' : 'Publish'}
+                </Button>
+              </span>
+            </Tooltip>
+          )}
+        </Box>
       </Paper>
 
       {/* Validation drawer — every finding shown here comes verbatim from the

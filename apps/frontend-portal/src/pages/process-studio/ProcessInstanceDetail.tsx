@@ -20,7 +20,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import CommentIcon from '@mui/icons-material/Comment';
 import { processApi, orgApi } from '../../api/client';
 import { getFormSchema, optionLabel, FieldDef } from './startFormHelpers';
-import BackButton from '../../components/BackButton';
+import PageHeader from '../../components/PageHeader';
 import { format } from 'date-fns';
 import { useAuth } from '../../auth/AuthContext';
 
@@ -329,33 +329,35 @@ export default function ProcessInstanceDetail() {
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <Paper elevation={0} sx={{ p: 2, mb: 2, flexShrink: 0 }}>
-        <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
-          <BackButton to="/processes/instances" label="Back to Process Monitor" />
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            {inst.definition_name}
-          </Typography>
-          <Chip label={`v${inst.version || 1}`} size="small" />
-          <Chip label={inst.status} size="small" color={STATUS_COLORS[inst.status] || 'default'} />
-
-          {isSuspended && (
-            <Button size="small" variant="outlined" color="primary" startIcon={<PlayArrowIcon />}
-              onClick={() => resume.mutate()} disabled={resume.isLoading}>
-              Resume
-            </Button>
-          )}
-          {isActive && (
-            <Button size="small" variant="outlined" color="warning" startIcon={<PauseIcon />}
-              onClick={() => suspend.mutate()} disabled={suspend.isLoading}>
-              Suspend
-            </Button>
-          )}
-          {canControl && (
-            <Button size="small" variant="outlined" color="error" startIcon={<StopIcon />}
-              onClick={() => setTerminateDialog(true)}>
-              Terminate
-            </Button>
-          )}
-        </Box>
+        <PageHeader
+          backTo="/processes/instances"
+          backLabel="Back to Process Monitor"
+          title={inst.definition_name}
+          chips={<>
+            <Chip label={`v${inst.version || 1}`} size="small" />
+            <Chip label={inst.status} size="small" color={STATUS_COLORS[inst.status] || 'default'} />
+          </>}
+          actions={<>
+            {isSuspended && (
+              <Button size="small" variant="outlined" color="primary" startIcon={<PlayArrowIcon />}
+                onClick={() => resume.mutate()} disabled={resume.isLoading}>
+                Resume
+              </Button>
+            )}
+            {isActive && (
+              <Button size="small" variant="outlined" color="warning" startIcon={<PauseIcon />}
+                onClick={() => suspend.mutate()} disabled={suspend.isLoading}>
+                Suspend
+              </Button>
+            )}
+            {canControl && (
+              <Button size="small" variant="outlined" color="error" startIcon={<StopIcon />}
+                onClick={() => setTerminateDialog(true)}>
+                Terminate
+              </Button>
+            )}
+          </>}
+        />
 
         <Box display="flex" gap={3} mt={1} flexWrap="wrap">
           {inst.business_key && (
