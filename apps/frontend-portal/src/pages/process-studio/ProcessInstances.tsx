@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import {
-  Box, Typography, Button, Chip, Table, TableHead, TableBody, TableRow, TableCell,
-  TablePagination, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,
+  Box, Typography, Button, Chip,
+  Dialog, DialogTitle, DialogContent, DialogActions,
   Select, MenuItem, FormControl, InputLabel, Card, CardContent, Alert,
   Tooltip, IconButton,
 } from '@mui/material';
@@ -16,6 +16,7 @@ import { processApi } from '../../api/client';
 import { format } from 'date-fns';
 import { PROCESS_INSTANCE_STATUS_COLORS as STATUS_COLORS } from '../../utils/statusColors';
 import EmptyState from '../../components/EmptyState';
+import DataTable, { DataTableColumn } from '../../components/DataTable';
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -52,6 +53,46 @@ export default function ProcessInstances() {
       onError:   (e: any) => setDeleteInstError(e.response?.data?.message || e.message),
     },
   );
+
+  const columns: DataTableColumn<any>[] = [
+    { key: 'process', label: 'Process', render: inst => <Typography variant="body2" fontWeight={500}>{inst.definition_name}</Typography> },
+    { key: 'ref', label: 'Reference', render: inst => (
+      <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+        {inst.business_key ||
+          <Typography component="span" variant="caption" color="text.secondary">—</Typography>}
+      </Typography>
+    ) },
+    { key: 'status', label: 'Status', render: inst => <Chip label={inst.status} size="small" color={STATUS_COLORS[inst.status] || 'default'} /> },
+    { key: 'submitted', label: 'Submitted', render: inst => <Typography variant="body2">{format(new Date(inst.started_at), 'dd MMM HH:mm')}</Typography> },
+    { key: 'completed', label: 'Completed', render: inst => inst.completed_at
+      ? <Typography variant="body2">{format(new Date(inst.completed_at), 'dd MMM HH:mm')}</Typography>
+      : <Typography variant="caption" color="text.secondary">—</Typography> },
+    { key: 'actions', label: 'Actions', align: 'right', render: inst => (
+      <>
+        <Tooltip title="View Details">
+          <IconButton size="small"
+            onClick={(e) => { e.stopPropagation(); navigate(`/processes/instances/${inst.id}`); }}>
+            <VisibilityIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        {['terminated', 'completed'].includes(inst.status) && (
+          <Tooltip title="Delete">
+            <IconButton size="small" color="error"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteInstError('');
+                setConfirmDeleteInst({
+                  id: inst.id,
+                  name: inst.business_key || inst.definition_name,
+                });
+              }}>
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </>
+    ) },
+  ];
 
   return (
     <Box>
@@ -96,85 +137,17 @@ export default function ProcessInstances() {
       {/* ── Table ──────────────────────────────────────────────────────────── */}
       <Card>
         <CardContent sx={{ p: 0 }}>
-          {isLoading ? (
-            <Box p={4} display="flex" justifyContent="center"><CircularProgress /></Box>
-          ) : (
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Process</TableCell>
-                  <TableCell>Reference</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Submitted</TableCell>
-                  <TableCell>Completed</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {data?.data?.map((inst: any) => (
-                  <TableRow key={inst.id} hover sx={{ cursor: 'pointer' }}
-                    onClick={() => navigate(`/processes/instances/${inst.id}`)}>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={500}>{inst.definition_name}</Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                        {inst.business_key ||
-                          <Typography component="span" variant="caption" color="text.secondary">—</Typography>}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip label={inst.status} size="small" color={STATUS_COLORS[inst.status] || 'default'} />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">{format(new Date(inst.started_at), 'dd MMM HH:mm')}</Typography>
-                    </TableCell>
-                    <TableCell>
-                      {inst.completed_at
-                        ? <Typography variant="body2">{format(new Date(inst.completed_at), 'dd MMM HH:mm')}</Typography>
-                        : <Typography variant="caption" color="text.secondary">—</Typography>}
-                    </TableCell>
-                    <TableCell align="right" onClick={e => e.stopPropagation()}>
-                      <Tooltip title="View Details">
-                        <IconButton size="small"
-                          onClick={() => navigate(`/processes/instances/${inst.id}`)}>
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      {['terminated', 'completed'].includes(inst.status) && (
-                        <Tooltip title="Delete">
-                          <IconButton size="small" color="error"
-                            onClick={() => {
-                              setDeleteInstError('');
-                              setConfirmDeleteInst({
-                                id: inst.id,
-                                name: inst.business_key || inst.definition_name,
-                              });
-                            }}>
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!data?.data?.length && (
-                  <TableRow>
-                    <TableCell colSpan={6}>
-                      <EmptyState icon={<InboxIcon fontSize="inherit" />} title="No requests found" description="Try a different filter, or start a new request from the Service Catalog." />
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-          <TablePagination
-            component="div"
-            count={data?.total || 0}
+          <DataTable
+            columns={columns}
+            rows={data?.data || []}
+            rowKey={inst => inst.id}
+            onRowClick={inst => navigate(`/processes/instances/${inst.id}`)}
+            loading={isLoading}
+            emptyState={<EmptyState icon={<InboxIcon fontSize="inherit" />} title="No requests found" description="Try a different filter, or start a new request from the Service Catalog." />}
             page={page}
-            onPageChange={(_, p) => setPage(p)}
-            rowsPerPage={pageSize}
-            rowsPerPageOptions={[20]}
+            pageSize={pageSize}
+            total={data?.total || 0}
+            onPageChange={setPage}
           />
         </CardContent>
       </Card>
