@@ -11,23 +11,10 @@ import {
   Legend, LineChart, Line, PieChart, Pie, Cell,
 } from 'recharts';
 import { analyticsApi } from '../../api/client';
+import KPIStatCard from '../../components/KPIStatCard';
 
 const STATUS_COLORS = ['#1976d2', '#2e7d32', '#ed6c02', '#d32f2f'];
 const PALETTE       = ['#1976d2', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1', '#d32f2f'];
-
-function StatCard({
-  label, value, sub, color = '#1976d2',
-}: { label: string; value: any; sub?: string; color?: string }) {
-  return (
-    <Card sx={{ height: '100%' }}>
-      <CardContent>
-        <Typography variant="h3" sx={{ color, fontWeight: 700, lineHeight: 1 }}>{value ?? '—'}</Typography>
-        <Typography variant="body2" color="text.secondary" mt={0.5}>{label}</Typography>
-        {sub && <Typography variant="caption" color="text.secondary">{sub}</Typography>}
-      </CardContent>
-    </Card>
-  );
-}
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -74,10 +61,10 @@ export default function ProcessAnalytics() {
       {/* ── Row 1: Summary KPIs ── */}
       <Grid container spacing={3}>
         <Grid item xs={6} sm={3}>
-          <StatCard label="Total Instances" value={si.total} color="#1976d2" />
+          <KPIStatCard label="Total Instances" value={si.total} color="#1976d2" />
         </Grid>
         <Grid item xs={6} sm={3}>
-          <StatCard
+          <KPIStatCard
             label="Completed (30d)"
             value={si.completedThisMonth}
             sub={`${s.completionRate ?? 0}% overall completion`}
@@ -85,7 +72,7 @@ export default function ProcessAnalytics() {
           />
         </Grid>
         <Grid item xs={6} sm={3}>
-          <StatCard
+          <KPIStatCard
             label="Avg Cycle Time"
             value={s.avgCycleHours != null ? `${s.avgCycleHours}h` : '—'}
             sub="for completed instances"
@@ -93,7 +80,7 @@ export default function ProcessAnalytics() {
           />
         </Grid>
         <Grid item xs={6} sm={3}>
-          <StatCard
+          <KPIStatCard
             label="SLA Breaches"
             value={st.slaBreached}
             sub={`${st.overdue ?? 0} overdue tasks`}
