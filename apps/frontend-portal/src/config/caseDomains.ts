@@ -16,7 +16,15 @@ export const CASE_DOMAINS: Record<string, CaseDomain> = {
       { key: 'fault',    label: 'Faults' },
       { key: 'problem',  label: 'Problems' },
       { key: 'pdt',      label: 'Performance' },
-      { key: 'change',   label: 'Changes' },
+    ],
+  },
+  itsm: {
+    key: 'itsm',
+    label: 'IT Service Management',
+    types: [
+      { key: 'change',  label: 'Changes' },
+      { key: 'request', label: 'Service Requests' },
+      { key: 'alarm',   label: 'Alarms' },
     ],
   },
   security: {
