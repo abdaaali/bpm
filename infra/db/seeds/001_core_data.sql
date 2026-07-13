@@ -734,7 +734,7 @@ INSERT INTO process_definitions (id, tenant_id, slug, name, description, categor
     <sequenceFlow id="s11" sourceRef="exc_request" targetRef="exc_review"/>
     <userTask id="exc_review" name="Review and Approve Exception" camunda:candidateGroups="manager">
       <extensionElements>
-        <camunda:formProperty id="decision" name="Exception decision" type="enum" required="true">
+        <camunda:formProperty id="exception_decision" name="Exception decision" type="enum" required="true">
           <camunda:value id="approve" name="Approve exception"/>
           <camunda:value id="reject" name="Reject - resume diagnosis"/>
         </camunda:formProperty>
@@ -743,8 +743,8 @@ INSERT INTO process_definitions (id, tenant_id, slug, name, description, categor
     </userTask>
     <sequenceFlow id="s12" sourceRef="exc_review" targetRef="exc_gw"/>
     <exclusiveGateway id="exc_gw" name="Exception Approved"/>
-    <sequenceFlow id="s13" sourceRef="exc_gw" targetRef="exc_monitor"><conditionExpression>${decision == "approve"}</conditionExpression></sequenceFlow>
-    <sequenceFlow id="s14" sourceRef="exc_gw" targetRef="diagnose"><conditionExpression>${decision == "reject"}</conditionExpression></sequenceFlow>
+    <sequenceFlow id="s13" sourceRef="exc_gw" targetRef="exc_monitor"><conditionExpression>${exception_decision == "approve"}</conditionExpression></sequenceFlow>
+    <sequenceFlow id="s14" sourceRef="exc_gw" targetRef="diagnose"><conditionExpression>${exception_decision == "reject"}</conditionExpression></sequenceFlow>
     <userTask id="exc_monitor" name="Exception Monitoring and Scheduled Review" camunda:candidateGroups="manager">
       <extensionElements>
         <camunda:formProperty id="reviewDate" name="Scheduled review date" type="date" required="true"/>
@@ -784,7 +784,7 @@ INSERT INTO process_definitions (id, tenant_id, slug, name, description, categor
     <sequenceFlow id="a2" sourceRef="validate_req" targetRef="approve"/>
     <userTask id="approve" name="Approve Movement" camunda:candidateGroups="manager">
       <extensionElements>
-        <camunda:formProperty id="approved" name="Approved?" type="enum" required="true">
+        <camunda:formProperty id="movement_approved" name="Approved?" type="enum" required="true">
           <camunda:value id="yes" name="Yes"/>
           <camunda:value id="no" name="No - reject"/>
         </camunda:formProperty>
@@ -793,8 +793,8 @@ INSERT INTO process_definitions (id, tenant_id, slug, name, description, categor
     </userTask>
     <sequenceFlow id="a3" sourceRef="approve" targetRef="appr_gw"/>
     <exclusiveGateway id="appr_gw" name="Approved?"/>
-    <sequenceFlow id="a4" sourceRef="appr_gw" targetRef="dispatch_asset"><conditionExpression>${approved == "yes"}</conditionExpression></sequenceFlow>
-    <sequenceFlow id="a5" sourceRef="appr_gw" targetRef="notify_reject"><conditionExpression>${approved == "no"}</conditionExpression></sequenceFlow>
+    <sequenceFlow id="a4" sourceRef="appr_gw" targetRef="dispatch_asset"><conditionExpression>${movement_approved == "yes"}</conditionExpression></sequenceFlow>
+    <sequenceFlow id="a5" sourceRef="appr_gw" targetRef="notify_reject"><conditionExpression>${movement_approved == "no"}</conditionExpression></sequenceFlow>
     <userTask id="dispatch_asset" name="Prepare and Dispatch" camunda:candidateGroups="logistics">
       <extensionElements>
         <camunda:formProperty id="dispatchMethod" name="Dispatch method" type="enum" required="true">
