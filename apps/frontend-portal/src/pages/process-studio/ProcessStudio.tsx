@@ -8,6 +8,7 @@ import {
   IconButton,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
+import DownloadIcon from '@mui/icons-material/Download';
 import PublishIcon from '@mui/icons-material/Publish';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -373,6 +374,18 @@ export default function ProcessStudio() {
     },
   });
 
+  const exportBpmn = async () => {
+    if (!modelerRef.current) return;
+    const { xml } = await modelerRef.current.saveXML({ format: true });
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${def.slug || 'process'}-v${def.version}.bpmn`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   useEffect(() => {
     if (!def || !containerRef.current) return;
     let destroyed = false;
@@ -458,6 +471,11 @@ export default function ProcessStudio() {
             <Button size="small" variant={dirty ? 'contained' : 'outlined'} startIcon={<SaveIcon />}
               onClick={() => save.mutate()} disabled={save.isLoading}>
               {save.isLoading ? 'Saving…' : def.status !== 'draft' ? 'Save as new version' : 'Save'}
+            </Button>
+          </Tooltip>
+          <Tooltip title="Download the current canvas as a .bpmn file">
+            <Button size="small" variant="outlined" startIcon={<DownloadIcon />} onClick={exportBpmn}>
+              Export BPMN
             </Button>
           </Tooltip>
           {def.status !== 'active' && (
