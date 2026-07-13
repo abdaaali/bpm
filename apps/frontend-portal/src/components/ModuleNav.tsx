@@ -1,8 +1,12 @@
 import React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Box, Tabs, Tab } from '@mui/material';
+import { useLocation, Link as RouterLink } from 'react-router-dom';
+import { useQuery } from 'react-query';
+import { Box, Tabs, Tab, Chip } from '@mui/material';
 import { useAccess } from '../auth/useAccess';
+import { useAuth } from '../auth/AuthContext';
 import { CASE_DOMAINS, domainForType } from '../config/caseDomains';
+import { caseApi } from '../api/client';
+import { OPEN_CASE_STATUSES } from '../pages/catalog/ServiceCatalog';
 
 interface SubPage { label: string; path: string; perm?: string; }
 interface ModuleGroup { label: string; pages: SubPage[]; }
@@ -17,35 +21,15 @@ const GROUPS: ModuleGroup[] = [
     { label: 'Catalog', path: '/catalog', perm: 'cases:read' },
     { label: 'My Requests', path: '/my-requests', perm: 'cases:read' },
   ] },
-  { label: 'External Workforce', pages: [
-    { label: 'Companies', path: '/contractors/companies', perm: 'contractors:read' },
-    { label: 'External Workers', path: '/contractors/users', perm: 'contractors:read' },
-    { label: 'Dispatch', path: '/contractors/dispatch', perm: 'contractors:read' },
-    { label: 'Submission Review', path: '/contractors/review', perm: 'contractors:read' },
-    { label: 'Performance & KPIs', path: '/contractors/dashboard', perm: 'contractors:read' },
-  ] },
-  { label: 'Process Studio', pages: [
-    { label: 'Studio', path: '/processes', perm: 'processes:read' },
-    { label: 'Process Monitor', path: '/processes/instances', perm: 'processes:read' },
-    { label: 'Process Performance', path: '/processes/analytics', perm: 'processes:read' },
-  ] },
-  { label: 'Governance', pages: [
-    { label: 'Policies & Controls', path: '/approvals/policies', perm: 'approvals:read' },
-    { label: 'Approval Instances', path: '/approvals/instances', perm: 'approvals:read' },
-  ] },
-  { label: 'Administration', pages: [
-    { label: 'Organization', path: '/org', perm: 'org:read' },
-    { label: 'Master Data', path: '/mdm', perm: 'mdm:read' },
-    { label: 'SLA Policies', path: '/admin/sla', perm: 'cases:read' },
-    { label: 'Integrations', path: '/admin/connectors', perm: 'connectors:manage' },
-    { label: 'Notification Templates', path: '/admin/notification-templates', perm: 'notifications:manage' },
-    { label: 'Audit & Compliance', path: '/audit', perm: 'audit:read' },
-  ] },
+  // External Workforce, Process Studio and Governance now have their own
+  // sidebar dropdown (see components/Layout.tsx) — a second tab-bar nav
+  // surface for them here would be redundant.
+  // Administration is likewise NOT listed here — its sidebar dropdown covers it.
 ];
 
 const base = (p: string) => p.split('?')[0];
 
-function CaseDomainNav({ navigate }: { navigate: (p: string) => void }) {
+function CaseDomainNav() {
   const loc = useLocation();
   const params = new URLSearchParams(loc.search);
   const domainKey = params.get('domain') || domainForType(params.get('type'));
@@ -61,7 +45,7 @@ function CaseDomainNav({ navigate }: { navigate: (p: string) => void }) {
   return (
     <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2, mt: -1 }}>
       <Tabs value={idx < 0 ? false : idx} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
-        {tabs.map(t => <Tab key={t.to} label={t.label} onClick={() => navigate(t.to)} sx={{ textTransform: 'none', minHeight: 44 }} />)}
+        {tabs.map(t => <Tab key={t.to} component={RouterLink} to={t.to} label={t.label} sx={{ textTransform: 'none', minHeight: 44 }} />)}
       </Tabs>
     </Box>
   );
@@ -69,16 +53,26 @@ function CaseDomainNav({ navigate }: { navigate: (p: string) => void }) {
 
 export default function ModuleNav() {
   const loc = useLocation();
-  const navigate = useNavigate();
   const { can } = useAccess();
+  const { user } = useAuth();
   const full = loc.pathname + loc.search;
-
-  // Cases area: scoped domain tabs (Service / Security / Field), not a flat group.
-  if (loc.pathname === '/cases' && can('cases:read')) return <CaseDomainNav navigate={navigate} />;
 
   const inGroup = (g: ModuleGroup) =>
     g.pages.some(p => loc.pathname === base(p.path) || loc.pathname.startsWith(base(p.path) + '/'));
   const group = GROUPS.find(inGroup);
+
+  // Hooks must run on every render regardless of which branch below eventually
+  // returns — computing this unconditionally avoids a Rules-of-Hooks violation
+  // (a conditional useQuery here previously crashed on navigation between route types).
+  const { data: myRequestsCount } = useQuery(
+    ['module-nav-my-requests-count', user?.id],
+    () => caseApi.list({ requesterId: user?.id, status: OPEN_CASE_STATUSES.join(',') }, 1, 1),
+    { staleTime: 30_000, enabled: !!user && group?.label === 'Service Catalog' },
+  );
+
+  // Cases area: scoped domain tabs (Service / Security / Field), not a flat group.
+  if (loc.pathname === '/cases' && can('cases:read')) return <CaseDomainNav />;
+
   if (!group) return null;
 
   const pages = group.pages.filter(p => can(p.perm));
@@ -90,7 +84,12 @@ export default function ModuleNav() {
   return (
     <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2, mt: -1 }}>
       <Tabs value={idx < 0 ? false : idx} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
-        {pages.map(p => <Tab key={p.path} label={p.label} onClick={() => navigate(p.path)} sx={{ textTransform: 'none', minHeight: 44 }} />)}
+        {pages.map(p => (
+          <Tab key={p.path} component={RouterLink} to={p.path} sx={{ textTransform: 'none', minHeight: 44 }}
+            label={p.label === 'My Requests' && (myRequestsCount?.total ?? 0) > 0
+              ? <Box display="flex" alignItems="center" gap={0.75}>{p.label}<Chip label={myRequestsCount!.total} size="small" sx={{ height: 18, fontSize: 11 }} /></Box>
+              : p.label} />
+        ))}
       </Tabs>
     </Box>
   );
