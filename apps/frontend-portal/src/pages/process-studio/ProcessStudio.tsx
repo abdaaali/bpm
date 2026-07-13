@@ -406,6 +406,10 @@ export default function ProcessStudio() {
       }
       m.importXML(xmlToLoad)
         .then(() => {
+          // importXML does not auto-fit the viewport — without this, imported
+          // diagrams (especially Flowable's auto-generated BFS layout) can
+          // render entirely outside the visible canvas area.
+          (m.get('canvas') as any).zoom('fit-viewport', 'auto');
           // Baseline validation so the Publish button's disabled state is
           // known immediately, without forcing a manual Checks click first.
           runValidation();
