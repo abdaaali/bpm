@@ -236,8 +236,8 @@ export default function CreateCase() {
   if (!selectedType) {
     return (
       <Box>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/cases')} sx={{ mb: 2 }}>
-          Back to Cases
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/home')} sx={{ mb: 2 }}>
+          Back to Home
         </Button>
         <Typography variant="h4" mb={1}>Create New Case</Typography>
         <Typography variant="body2" color="text.secondary" mb={4}>
