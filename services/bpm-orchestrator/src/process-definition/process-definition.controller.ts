@@ -51,6 +51,16 @@ export class ProcessDefinitionController {
     return this.svc.publish(this.tenant(h), id, this.actor(h));
   }
 
+  /**
+   * Shared validation — the exact same rules `publish()` enforces. Body may
+   * carry `bpmn_xml` (Process Studio's live, possibly-unsaved canvas state);
+   * without it, the definition's last-saved XML is validated instead.
+   */
+  @Post(':id/validate')
+  validate(@Headers() h: Record<string, string>, @Param('id') id: string, @Body() body: { bpmn_xml?: string }) {
+    return this.svc.validate(this.tenant(h), id, body?.bpmn_xml).then(findings => ({ findings }));
+  }
+
   @Post(':id/unpublish')
   unpublish(@Headers() h: Record<string, string>, @Param('id') id: string) {
     return this.svc.unpublish(this.tenant(h), id, this.actor(h));

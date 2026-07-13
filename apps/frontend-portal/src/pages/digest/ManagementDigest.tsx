@@ -9,8 +9,14 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import SettingsIcon from '@mui/icons-material/Settings';
+import PeopleIcon from '@mui/icons-material/People';
+import HistoryIcon from '@mui/icons-material/History';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useAccess } from '../../auth/useAccess';
 import { digestApi } from '../../api/client';
+import BackButton from '../../components/BackButton';
 
 const STATUS_COLOR: Record<string, any> = { SENT: 'success', FAILED: 'error', Active: 'success', Paused: 'default' };
 
@@ -73,6 +79,7 @@ export default function ManagementDigest() {
 
   return (
     <Box>
+      <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
       <Box mb={2}>
         <Box display="flex" alignItems="center" gap={1.5}>
           <Typography variant="h5" fontWeight={800}>Weekly Management Digest</Typography>
@@ -86,10 +93,10 @@ export default function ManagementDigest() {
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-        <Tab label="📧 Overview" />
-        <Tab label="⚙️ Configuration" />
-        <Tab label="👥 Recipients" />
-        <Tab label="📜 Run History" />
+        <Tab icon={<MailOutlineIcon fontSize="small" />} iconPosition="start" label="Overview" />
+        <Tab icon={<SettingsIcon fontSize="small" />} iconPosition="start" label="Configuration" />
+        <Tab icon={<PeopleIcon fontSize="small" />} iconPosition="start" label="Recipients" />
+        <Tab icon={<HistoryIcon fontSize="small" />} iconPosition="start" label="Run History" />
       </Tabs>
 
       {/* ── Overview ── */}
@@ -115,8 +122,8 @@ export default function ManagementDigest() {
                   Generate a one-off preview, or generate and deliver the digest immediately. Scheduled delivery is {o.scheduleLabel}.
                 </Typography>
                 <Stack direction="row" spacing={1.5}>
-                  <Button variant="outlined" disabled={previewMut.isLoading} onClick={() => previewMut.mutate()}>
-                    👁️ Generate Preview
+                  <Button variant="outlined" startIcon={<VisibilityIcon />} disabled={previewMut.isLoading} onClick={() => previewMut.mutate()}>
+                    Generate Preview
                   </Button>
                   {canManage && (
                     <Button variant="contained" disabled={sendMut.isLoading} onClick={() => sendMut.mutate()}>

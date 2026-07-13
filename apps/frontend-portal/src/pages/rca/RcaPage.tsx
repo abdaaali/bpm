@@ -17,6 +17,7 @@ import {
   AreaChart, Area, BarChart,
 } from 'recharts';
 import { rcaApi } from '../../api/client';
+import BackButton from '../../components/BackButton';
 
 // ── Color helpers ──────────────────────────────────────────────────────────────
 const CATEGORY_COLORS: Record<string, string> = {
@@ -93,6 +94,7 @@ export default function RcaPage() {
 
   return (
     <Box>
+      <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" fontWeight={700}>Root Cause Analysis</Typography>

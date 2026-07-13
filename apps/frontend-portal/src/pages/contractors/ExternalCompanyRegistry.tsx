@@ -13,6 +13,7 @@ import VerifiedIcon from '@mui/icons-material/Verified';
 import PendingIcon from '@mui/icons-material/Pending';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { contractorApi } from '../../api/client';
+import BackButton from '../../components/BackButton';
 
 export interface ExternalCompany {
   id: string;
@@ -108,6 +109,7 @@ export default function ExternalCompanyRegistry() {
 
   return (
     <Box>
+      <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" fontWeight={700}>External Company Registry</Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd}>Add Company</Button>

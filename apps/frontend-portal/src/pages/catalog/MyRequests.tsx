@@ -8,8 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import {
   Box, Typography, Card, CardContent, Button, TextField, InputAdornment,
-  Chip, Table, TableHead, TableBody, TableRow, TableCell, TablePagination,
-  CircularProgress, FormControl, InputLabel, Select, MenuItem, LinearProgress,
+  Chip, FormControl, InputLabel, Select, MenuItem, LinearProgress,
   Tooltip,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
@@ -22,6 +21,8 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { caseApi } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { format, formatDistanceToNow } from 'date-fns';
+import DataTable, { DataTableColumn } from '../../components/DataTable';
+import EmptyState from '../../components/EmptyState';
 
 // Case-status presentation (catalog requests are cases now).
 const STATUS_META: Record<string, { label: string; color: any; Icon: React.ElementType }> = {
@@ -73,6 +74,57 @@ export default function MyRequests() {
     active:    (data?.data || []).filter((r: any) => OPEN_STATUSES.includes(r.status)).length,
     completed: (data?.data || []).filter((r: any) => DONE_STATUSES.includes(r.status)).length,
   };
+
+  const columns: DataTableColumn<any>[] = [
+    { key: 'reference', label: 'Reference', render: r => (
+      <Typography variant="body2" fontWeight={600} color="primary" fontFamily="monospace">
+        {r.case_number || r.id.slice(0, 8).toUpperCase()}
+      </Typography>
+    ) },
+    { key: 'service', label: 'Service', render: r => <Typography variant="body2" fontWeight={500}>{r.catalog_item || r.title || '—'}</Typography> },
+    { key: 'status', label: 'Status', render: r => {
+      const meta = STATUS_META[r.status] || { label: r.status, color: 'default', Icon: HourglassEmptyIcon };
+      const StatusIcon = meta.Icon;
+      return (
+        <Chip
+          icon={<StatusIcon style={{ fontSize: 14 }} />}
+          label={meta.label}
+          size="small"
+          color={meta.color}
+          variant={OPEN_STATUSES.includes(r.status) ? 'filled' : 'outlined'}
+        />
+      );
+    } },
+    { key: 'progress', label: 'Progress', render: r => {
+      const meta = STATUS_META[r.status] || { label: r.status, color: 'default', Icon: HourglassEmptyIcon };
+      const progress = PROGRESS[r.status] ?? 40;
+      return (
+        <Box sx={{ minWidth: 140 }}>
+          <LinearProgress variant="determinate" value={progress}
+            color={progress === 100 ? 'success' : 'primary'}
+            sx={{ height: 6, borderRadius: 1 }} />
+          <Typography variant="caption" color="text.secondary">
+            {progress === 100 ? 'Complete' : meta.label}
+          </Typography>
+        </Box>
+      );
+    } },
+    { key: 'submitted', label: 'Submitted', render: r => (
+      <Tooltip title={format(new Date(r.created_at), 'dd MMM yyyy HH:mm')}>
+        <Typography variant="body2">{formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}</Typography>
+      </Tooltip>
+    ) },
+    { key: 'updated', label: 'Last Updated', render: r => (
+      <Typography variant="body2" color="text.secondary">
+        {r.updated_at ? format(new Date(r.updated_at), 'dd MMM HH:mm') : '—'}
+      </Typography>
+    ) },
+    { key: 'actions', label: '', align: 'right', render: r => (
+      <Button size="small" endIcon={<OpenInNewIcon />} onClick={e => { e.stopPropagation(); navigate(`/cases/${r.id}`); }}>
+        View
+      </Button>
+    ) },
+  ];
 
   return (
     <Box>
@@ -129,103 +181,26 @@ export default function MyRequests() {
 
       {/* Table */}
       <Card>
-        {isLoading ? (
-          <Box p={4} display="flex" justifyContent="center"><CircularProgress /></Box>
-        ) : (
-          <>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Reference</TableCell>
-                  <TableCell>Service</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Progress</TableCell>
-                  <TableCell>Submitted</TableCell>
-                  <TableCell>Last Updated</TableCell>
-                  <TableCell align="right" />
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {rows.map((r: any) => {
-                  const meta = STATUS_META[r.status] || { label: r.status, color: 'default', Icon: HourglassEmptyIcon };
-                  const StatusIcon = meta.Icon;
-                  const progress = PROGRESS[r.status] ?? 40;
-                  return (
-                    <TableRow key={r.id} hover sx={{ cursor: 'pointer' }}
-                      onClick={() => navigate(`/cases/${r.id}`)}>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={600} color="primary" fontFamily="monospace">
-                          {r.case_number || r.id.slice(0, 8).toUpperCase()}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={500}>{r.catalog_item || r.title || '—'}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          icon={<StatusIcon style={{ fontSize: 14 }} />}
-                          label={meta.label}
-                          size="small"
-                          color={meta.color}
-                          variant={OPEN_STATUSES.includes(r.status) ? 'filled' : 'outlined'}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ minWidth: 140 }}>
-                        <Box>
-                          <LinearProgress variant="determinate" value={progress}
-                            color={progress === 100 ? 'success' : 'primary'}
-                            sx={{ height: 6, borderRadius: 1 }} />
-                          <Typography variant="caption" color="text.secondary">
-                            {progress === 100 ? 'Complete' : meta.label}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Tooltip title={format(new Date(r.created_at), 'dd MMM yyyy HH:mm')}>
-                          <Typography variant="body2">
-                            {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}
-                          </Typography>
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {r.updated_at ? format(new Date(r.updated_at), 'dd MMM HH:mm') : '—'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right" onClick={e => e.stopPropagation()}>
-                        <Button size="small" endIcon={<OpenInNewIcon />} onClick={() => navigate(`/cases/${r.id}`)}>
-                          View
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-                {rows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
-                      <Typography color="text.secondary">
-                        {search || statusFilter ? 'No requests match your filters.' : "You haven't submitted any requests yet."}
-                      </Typography>
-                      {!search && !statusFilter && (
-                        <Button variant="outlined" sx={{ mt: 2 }} onClick={() => navigate('/catalog')}>
-                          Browse Service Catalog
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-            <TablePagination
-              component="div"
-              count={data?.total || 0}
-              page={page}
-              rowsPerPage={20}
-              onPageChange={(_, p) => setPage(p)}
-              rowsPerPageOptions={[20]}
+        <DataTable
+          columns={columns}
+          rows={rows}
+          rowKey={r => r.id}
+          onRowClick={r => navigate(`/cases/${r.id}`)}
+          loading={isLoading}
+          emptyState={
+            <EmptyState
+              icon={<HourglassEmptyIcon fontSize="inherit" />}
+              title={search || statusFilter ? 'No requests match your filters.' : "You haven't submitted any requests yet."}
+              action={!search && !statusFilter && (
+                <Button variant="outlined" onClick={() => navigate('/catalog')}>Browse Service Catalog</Button>
+              )}
             />
-          </>
-        )}
+          }
+          page={page}
+          pageSize={20}
+          total={data?.total || 0}
+          onPageChange={setPage}
+        />
       </Card>
     </Box>
   );

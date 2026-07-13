@@ -13,6 +13,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { contractorApi } from '../../api/client';
 import { ExternalCompany } from './ExternalCompanyRegistry';
+import BackButton from '../../components/BackButton';
 
 export interface ExternalUser {
   id: string;
@@ -120,6 +121,7 @@ export default function ExternalUserManager() {
 
   return (
     <Box>
+      <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" fontWeight={700}>External User Manager</Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd}>Add User</Button>

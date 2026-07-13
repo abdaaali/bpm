@@ -12,6 +12,7 @@ import { useQuery, useMutation } from 'react-query';
 import { contractorApi } from '../../api/client';
 import { ExternalCompany } from './ExternalCompanyRegistry';
 import { ExternalUser } from './ExternalUserManager';
+import BackButton from '../../components/BackButton';
 
 interface WorkOrderDispatchProps {
   caseId?: string;
@@ -299,6 +300,7 @@ export default function WorkOrderDispatch({
   if (standalone) {
     return (
       <Box>
+        <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
           <AssignmentIcon />
           <Typography variant="h5" fontWeight={700}>Work Order Dispatch</Typography>

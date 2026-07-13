@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import {
   Box, Typography, Card, CardContent, Grid, Chip, Button, TextField,
@@ -127,6 +127,7 @@ function fmtMinutes(min: number): string {
 export default function CaseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
   const { user } = useAuth();
   const { can } = useAccess();
@@ -153,6 +154,10 @@ export default function CaseDetail() {
 
   // escalate snackbar
   const [escalateSnack, setEscalateSnack] = useState(false);
+
+  // just-submitted-from-New-Request snackbar
+  const [submittedSnack, setSubmittedSnack] = useState(Boolean((location.state as any)?.justSubmitted));
+  const submittedBusinessKey = (location.state as any)?.businessKey || '';
 
   // RCA
   const [rcaCategory, setRcaCategory] = useState('');
@@ -932,7 +937,12 @@ export default function CaseDetail() {
                 getOptionLabel={(o: any) => `${o.case_number} — ${o.title}`}
                 value={linkTarget}
                 onChange={(_, v) => setLinkTarget(v)}
-                onInputChange={(_, v) => setLinkSearch(v)}
+                // Same guard as the Reassign Autocomplete above: ignore MUI's
+                // programmatic 'reset'/'clear' input-change events (fired with
+                // the full "CASE-123 — title" label after a selection), which
+                // otherwise re-query the backend for that compound string and
+                // wipe the option list back to empty.
+                onInputChange={(_, v, reason) => { if (reason === 'input') setLinkSearch(v); }}
                 renderInput={p => <TextField {...p} size="small" label="Find a case (number or title)" />}
               />
             </DialogContent>
@@ -1407,7 +1417,15 @@ export default function CaseDetail() {
             getOptionLabel={(u: any) => u.display_name || `${u.first_name} ${u.last_name}`}
             value={userOptions.find((u: any) => u.id === newAssigneeId) || null}
             onChange={(_, u) => setNewAssigneeId(u?.id || '')}
-            onInputChange={(_, v) => setAssigneeSearch(v)}
+            // Only treat genuine typing as a search term. MUI also fires this
+            // with reason 'reset' (full "First Last" display label) whenever
+            // `value` changes — e.g. right after picking someone from the list
+            // — and with reason 'clear' when the field is cleared. Feeding
+            // either of those into the search query used to re-query the
+            // backend for the full display name, which the server can't match
+            // against individual first_name/last_name/email/username columns,
+            // silently wiping the just-populated option list back to empty.
+            onInputChange={(_, v, reason) => { if (reason === 'input') setAssigneeSearch(v); }}
             renderInput={(params) => <TextField {...params} label="Assignee" size="small" />}
           />
           <FormControl size="small" fullWidth>
@@ -1443,6 +1461,12 @@ export default function CaseDetail() {
       {/* Escalate snackbar */}
       <Snackbar open={escalateSnack} autoHideDuration={3000} onClose={() => setEscalateSnack(false)}
         message="Case escalated" />
+      {/* Just submitted from Service Catalog / New Request */}
+      <Snackbar open={submittedSnack} autoHideDuration={4000} onClose={() => setSubmittedSnack(false)}>
+        <Alert severity="success" onClose={() => setSubmittedSnack(false)}>
+          Request submitted successfully{submittedBusinessKey ? ` — ${submittedBusinessKey}` : ''}
+        </Alert>
+      </Snackbar>
       {/* Optimistic-lock conflict */}
       <Snackbar open={conflictSnack} autoHideDuration={6000} onClose={() => setConflictSnack(false)}>
         <Alert severity="warning" onClose={() => setConflictSnack(false)}>

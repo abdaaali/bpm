@@ -93,7 +93,30 @@ export const theme = createTheme({
         root: { borderRadius: RADIUS.sm, transition: `border-color ${TRANSITION}, box-shadow ${TRANSITION}` },
       },
     },
-    MuiTab: { styleOverrides: { root: { textTransform: 'none', fontWeight: 600, transition: `color ${TRANSITION}` } } },
+    MuiTabs: {
+      styleOverrides: {
+        root: { minHeight: 40 },
+        indicator: { display: 'none' },
+        flexContainer: { gap: 4 },
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontWeight: 600,
+          minHeight: 40,
+          borderRadius: RADIUS.sm,
+          transition: `background-color ${TRANSITION}, color ${TRANSITION}`,
+          '&:hover': { backgroundColor: 'rgba(40,86,201,0.06)' },
+          '&.Mui-selected': {
+            backgroundColor: '#2856c9',
+            color: '#ffffff',
+            '&:hover': { backgroundColor: '#1f43a3' },
+          },
+        },
+      },
+    },
     MuiButtonBase: {
       defaultProps: { disableRipple: false },
       styleOverrides: {

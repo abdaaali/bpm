@@ -16,9 +16,11 @@ import BusinessIcon from '@mui/icons-material/Business';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CommentIcon from '@mui/icons-material/Comment';
 import DownloadIcon from '@mui/icons-material/Download';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { contractorApi } from '../../api/client';
 import WorkOrderDispatch from './WorkOrderDispatch';
+import BackButton from '../../components/BackButton';
 
 interface Assignment {
   id: string;
@@ -149,6 +151,7 @@ export default function ExternalSubmissionReview({ assignmentId }: ExternalSubmi
     // Show assignment list
     return (
       <Box>
+        <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
         <Typography variant="h5" fontWeight={700} sx={{ mb: 3 }}>Submission Review</Typography>
         {listLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress /></Box>
@@ -200,7 +203,7 @@ export default function ExternalSubmissionReview({ assignmentId }: ExternalSubmi
   return (
     <Box>
       {!assignmentId && (
-        <Button variant="text" onClick={() => setSelectedId('')} sx={{ mb: 2 }}>← Back to list</Button>
+        <Button variant="text" startIcon={<ArrowBackIcon />} onClick={() => setSelectedId('')} sx={{ mb: 2 }}>Back to list</Button>
       )}
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}

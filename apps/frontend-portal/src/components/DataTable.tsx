@@ -17,18 +17,20 @@ export default function DataTable<T>({
   onRowClick?: (row: T) => void;
   loading?: boolean;
   emptyState: React.ReactNode;
-  page: number;
-  pageSize: number;
-  total: number;
-  onPageChange: (page: number) => void;
+  // Omit all four together for an unpaginated list (e.g. a short, fixed set
+  // of rows with no server-side paging) — the footer simply isn't rendered.
+  page?: number;
+  pageSize?: number;
+  total?: number;
+  onPageChange?: (page: number) => void;
 }) {
   return (
     <>
       {loading ? (
         <Box p={4} display="flex" justifyContent="center"><CircularProgress /></Box>
       ) : (
-        <Table>
-          <TableHead>
+        <Table sx={{ '& .MuiTableCell-root': { py: 1.5 } }}>
+          <TableHead sx={{ bgcolor: 'grey.50' }}>
             <TableRow>
               {columns.map(c => <TableCell key={c.key} align={c.align}>{c.label}</TableCell>)}
             </TableRow>
@@ -48,14 +50,16 @@ export default function DataTable<T>({
           </TableBody>
         </Table>
       )}
-      <TablePagination
-        component="div"
-        count={total}
-        page={page}
-        onPageChange={(_, p) => onPageChange(p)}
-        rowsPerPage={pageSize}
-        rowsPerPageOptions={[pageSize]}
-      />
+      {total !== undefined && page !== undefined && pageSize !== undefined && onPageChange && (
+        <TablePagination
+          component="div"
+          count={total}
+          page={page}
+          onPageChange={(_, p) => onPageChange(p)}
+          rowsPerPage={pageSize}
+          rowsPerPageOptions={[pageSize]}
+        />
+      )}
     </>
   );
 }

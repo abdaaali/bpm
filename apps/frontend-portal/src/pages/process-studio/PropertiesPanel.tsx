@@ -50,6 +50,8 @@ function applyToBpmn(modeler: any, element: any, patch: {
   config?: string;
   formFields?: FormField[];
   formKey?: string;
+  allowUnassigned?: boolean;
+  startMode?: string;
 }) {
   if (!modeler || !element) return;
   const modeling = modeler.get('modeling');
@@ -96,6 +98,14 @@ function applyToBpmn(modeler: any, element: any, patch: {
     } else {
       delete bo.$attrs['camunda:formFields'];
     }
+  }
+  if (patch.allowUnassigned !== undefined) {
+    if (patch.allowUnassigned) bo.$attrs['camunda:allowUnassigned'] = 'true';
+    else delete bo.$attrs['camunda:allowUnassigned'];
+  }
+  if (patch.startMode !== undefined) {
+    if (patch.startMode && patch.startMode !== 'service_catalog') bo.$attrs['camunda:startMode'] = patch.startMode;
+    else delete bo.$attrs['camunda:startMode']; // service_catalog is the implicit default — no attribute needed
   }
   if (patch.condition !== undefined && element.type === 'bpmn:SequenceFlow') {
     if (patch.condition.trim()) {
@@ -475,6 +485,8 @@ export default function PropertiesPanel({ modeler, slug, processName }: Properti
   const [config, setConfig] = useState('');
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [formKey, setFormKey] = useState('');
+  const [allowUnassigned, setAllowUnassigned] = useState(false);
+  const [startMode, setStartMode] = useState('service_catalog');
   const elementRef = useRef<any>(null);
 
   const { data: rolesData } = useQuery('roles', () => orgApi.getRoles(), { staleTime: 60000 });
@@ -498,6 +510,8 @@ export default function PropertiesPanel({ modeler, slug, processName }: Properti
       setServiceType(bo.$attrs?.['camunda:serviceType'] || '');
       setConfig(bo.$attrs?.['camunda:serviceConfig'] || '');
       setFormKey(bo.$attrs?.['camunda:formKey'] || bo.$attrs?.['activiti:formKey'] || '');
+      setAllowUnassigned((bo.$attrs?.['camunda:allowUnassigned'] || '') === 'true');
+      setStartMode(bo.$attrs?.['camunda:startMode'] || 'service_catalog');
       // Accept either prefix — launch processes were authored with `activiti:`.
       const ffRaw = bo.$attrs?.['camunda:formFields'] || bo.$attrs?.['activiti:formFields'] || '';
       try { setFormFields(ffRaw ? JSON.parse(decodeURIComponent(ffRaw)) : []); }
@@ -658,6 +672,18 @@ export default function PropertiesPanel({ modeler, slug, processName }: Properti
                   inputProps={{ min: 0, step: 0.5 }}
                   helperText="Leave blank for no SLA"
                 />
+                {!assignee && candidateGroups.length === 0 && (
+                  <FormControlLabel
+                    control={<Checkbox size="small" checked={allowUnassigned}
+                      onChange={e => { setAllowUnassigned(e.target.checked); applyPatch({ allowUnassigned: e.target.checked }); }} />}
+                    label={<Typography variant="body2">Allow this task to enter the unassigned work queue</Typography>}
+                  />
+                )}
+                {!assignee && candidateGroups.length === 0 && !allowUnassigned && (
+                  <Alert severity="error" sx={{ fontSize: 12 }}>
+                    This task has no assignee, no candidate group, and isn't marked as allowed to be unassigned — Publish will block on it.
+                  </Alert>
+                )}
               </Box>
 
               <SectionHeader title="Task Form Fields" />
@@ -672,11 +698,29 @@ export default function PropertiesPanel({ modeler, slug, processName }: Properti
       {/* Start Event */}
       {isStartEvent && (
         <>
+          <SectionHeader title="Start Mode" />
+          <Box sx={{ px: 2, py: 1.5 }}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>How this process starts</InputLabel>
+              <Select label="How this process starts" value={startMode}
+                onChange={e => { setStartMode(e.target.value); applyPatch({ startMode: e.target.value }); }}>
+                <MenuItem value="service_catalog">Service Catalog (a person starts it)</MenuItem>
+                <MenuItem value="api">API-triggered (no person fills a form)</MenuItem>
+                <MenuItem value="system">System/event-triggered</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
           <SectionHeader title="Start Form Fields" />
           <Box sx={{ px: 2, pt: 1, pb: 0.5 }}>
-            <Alert severity="info" sx={{ fontSize: 11, py: 0.5, mb: 1.5 }}>
-              Fields here appear as a form when someone starts this process.
-            </Alert>
+            {startMode === 'service_catalog' ? (
+              <Alert severity="info" sx={{ fontSize: 11, py: 0.5, mb: 1.5 }}>
+                Fields here appear as a form when someone starts this process from the Service Catalog. At least one is required.
+              </Alert>
+            ) : (
+              <Alert severity="info" sx={{ fontSize: 11, py: 0.5, mb: 1.5 }}>
+                This process is {startMode === 'api' ? 'API-triggered' : 'system-triggered'} — a start form is optional.
+              </Alert>
+            )}
             <FormFieldEditor fields={formFields} onChange={updateFormFields} addLabel="Add start form field" />
           </Box>
         </>

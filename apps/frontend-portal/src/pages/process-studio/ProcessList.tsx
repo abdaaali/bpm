@@ -15,6 +15,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import UnpublishedIcon from '@mui/icons-material/Unpublished';
 import { processApi } from '../../api/client';
 import { useState } from 'react';
+import BackButton from '../../components/BackButton';
 
 // ── BPMN content helpers ─────────────────────────────────────────────────────
 
@@ -242,6 +243,7 @@ export default function ProcessList() {
 
   return (
     <Box>
+      <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Process Studio</Typography>

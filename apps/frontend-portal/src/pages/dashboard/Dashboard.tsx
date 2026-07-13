@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import { dashboardApi, caseApi, analyticsApi, auditApi, processApi, mdmApi } from '../../api/client';
 import { useAccess } from '../../auth/useAccess';
+import BackButton from '../../components/BackButton';
 import {
   PieChart, Pie, Cell, Tooltip as RTooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, LineChart, Line,
@@ -115,6 +116,7 @@ export default function Dashboard() {
 
   return (
     <Box>
+      <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
       {/* ── Title ── */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
         <Box>

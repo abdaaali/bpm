@@ -21,6 +21,7 @@ import Inventory2Icon from '@mui/icons-material/Inventory2';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { caseApi, orgApi, mdmApi, datahubApi, processApi } from '../../api/client';
 import { DynField, FieldDef, buildInitialValues, isFormComplete } from '../process-studio/startFormHelpers';
+import BackButton from '../../components/BackButton';
 
 // Case types that dispatch a team to a site → travel-aware Hybrid SLA applies.
 const FIELD_TYPES = new Set(['fault', 'incident', 'theft', 'asset_movement', 'convoy', 'pdt']);
@@ -236,9 +237,7 @@ export default function CreateCase() {
   if (!selectedType) {
     return (
       <Box>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/home')} sx={{ mb: 2 }}>
-          Back to Home
-        </Button>
+        <BackButton to="/home" label="Back to Home" sx={{ mb: 2 }} />
         <Typography variant="h4" mb={1}>Create New Case</Typography>
         <Typography variant="body2" color="text.secondary" mb={4}>
           Select the case type to continue
@@ -619,7 +618,13 @@ export default function CreateCase() {
                 getOptionLabel={(u: any) => u.display_name || `${u.first_name} ${u.last_name}`}
                 value={userOptions.find((u: any) => u.id === form.assignee_id) || null}
                 onChange={(_, u) => setForm(f => ({ ...f, assignee_id: u?.id || '' }))}
-                onInputChange={(_, v) => setAssigneeSearch(v)}
+                // Ignore MUI's programmatic 'reset'/'clear' input-change events
+                // (full "First Last" label after a selection) — feeding those
+                // into the search re-queries the backend for the combined
+                // name, which it can't match against individual columns, and
+                // silently wipes the option list back to empty. See the same
+                // fix in CaseDetail.tsx's Reassign dialog.
+                onInputChange={(_, v, reason) => { if (reason === 'input') setAssigneeSearch(v); }}
                 noOptionsText="No users found"
                 renderOption={(props, u) => (
                   <Box component="li" {...props}>

@@ -8,6 +8,7 @@ import {
 import InsightsIcon from '@mui/icons-material/Insights';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip } from 'recharts';
 import { caseApi } from '../../api/client';
+import BackButton from '../../components/BackButton';
 
 const SLA_CARDS = [
   { key: 'on_track', label: 'On track', color: '#2e7d32' },
@@ -40,6 +41,7 @@ export default function OpsDashboard() {
 
   return (
     <Box>
+      <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
       <Box display="flex" alignItems="center" gap={1.5} mb={0.5}>
         <InsightsIcon color="primary" />
         <Typography variant="h5" fontWeight={700}>Telecom Operations</Typography>

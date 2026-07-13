@@ -71,6 +71,10 @@ export const processApi = {
   createDef:              (dto: any)               => axios.post(`${BASE}/processes/definitions`, dto, { headers: headers() }).then(r => r.data),
   updateDef:              (id: string, dto: any)   => axios.put(`${BASE}/processes/definitions/${id}`, dto, { headers: headers() }).then(r => r.data),
   publishDef:             (id: string)             => axios.post(`${BASE}/processes/definitions/${id}/publish`, {}, { headers: headers() }).then(r => r.data),
+  // Shared validation — the exact same rule engine `publish` enforces server-side.
+  // Pass the current (possibly unsaved) canvas XML so Checks validates what's
+  // actually on screen, not just what was last saved.
+  validateDef:            (id: string, bpmnXml?: string) => axios.post(`${BASE}/processes/definitions/${id}/validate`, { bpmn_xml: bpmnXml }, { headers: headers() }).then(r => r.data),
   newDefVersion:          (id: string)             => axios.post(`${BASE}/processes/definitions/${id}/new-version`, {}, { headers: headers() }).then(r => r.data),
   unpublishDef:           (id: string)             => axios.post(`${BASE}/processes/definitions/${id}/unpublish`, {}, { headers: headers() }).then(r => r.data),
   archiveDef:             (id: string)             => axios.post(`${BASE}/processes/definitions/${id}/archive`, {}, { headers: headers() }).then(r => r.data),

@@ -19,7 +19,6 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete,
   Stack, Paper, Stepper, Step, StepLabel, LinearProgress,
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import PersonIcon from '@mui/icons-material/Person';
@@ -34,6 +33,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { format, formatDistanceToNow } from 'date-fns';
 import { DynField, buildInitialValues, isFormComplete, getFormSchema } from '../process-studio/startFormHelpers';
 import { useTaskActions } from './useTaskActions';
+import BackButton from '../../components/BackButton';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -249,9 +249,7 @@ export default function WorkItemDetail({ mode }: { mode: 'task' | 'request' }) {
     <Box>
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <Box display="flex" alignItems="center" gap={1} mb={2}>
-        <Tooltip title="Back to Workplace">
-          <IconButton onClick={() => navigate(backTo)} size="small"><ArrowBackIcon /></IconButton>
-        </Tooltip>
+        <BackButton to={backTo} label="Back to Workplace" />
         <Box flex={1}>
           <Typography variant="h5" fontWeight={700}>{title}</Typography>
           <Typography variant="body2" color="text.secondary">{subtitle}</Typography>

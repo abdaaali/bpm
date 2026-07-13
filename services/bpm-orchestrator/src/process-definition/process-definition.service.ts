@@ -1,8 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import axios from 'axios';
 import { DatabaseService } from '../database/database.service';
 import { KafkaProducerService } from '../kafka/kafka-producer.service';
 import { AuditService } from '../audit/audit.service';
 import { parseBpmn } from '../engine/bpmn-parser';
+import { validateProcess, hasBlockingFindings, ValidationFinding, ApprovalPolicyContext } from '../engine/validation';
 
 @Injectable()
 export class ProcessDefinitionService {
@@ -155,9 +157,58 @@ export class ProcessDefinitionService {
     return def;
   }
 
+  /**
+   * The single source of truth for "can this diagram actually run." Used by
+   * both `POST /definitions/:id/validate` (Process Studio's Checks button,
+   * against whatever XML is passed in — saved or not) and `publish()` below
+   * (which always re-validates the persisted XML and refuses to publish if
+   * any blocking finding remains — the backend is the final authority, this
+   * cannot be bypassed by calling the API directly).
+   */
+  async validate(tenantId: string, id: string, bpmnXmlOverride?: string): Promise<ValidationFinding[]> {
+    const existing = await this.findOne(tenantId, id);
+    const xml = bpmnXmlOverride ?? existing.bpmn_xml;
+    if (!xml) return [];
+    const bpmnProcess = parseBpmn(xml);
+    const approvalPolicy = await this.fetchApprovalPolicy(tenantId, existing.slug);
+    return validateProcess(bpmnProcess, { approvalPolicy });
+  }
+
+  /** Fetch the active approval policy linked to a process slug from approval-service. Best-effort: a downstream outage must not corrupt validation — treat it as "no policy" and surface the real gap (APPROVAL_POLICY_MISSING) rather than hide a network error inside a false pass. */
+  private async fetchApprovalPolicy(tenantId: string, slug: string): Promise<ApprovalPolicyContext | null> {
+    try {
+      const base = process.env.APPROVAL_SERVICE_URL || 'http://approval-service:3002';
+      const resp = await axios.get(`${base}/policies`, {
+        headers: { 'x-tenant-id': tenantId },
+        params: { pageSize: 100 },
+        timeout: 5000,
+      });
+      const policies = resp.data?.data || [];
+      const match = policies.find((p: any) => p.process_key === slug);
+      if (!match) return null;
+      return { id: match.id, name: match.name, active: match.active, steps: match.steps || [] };
+    } catch (e: any) {
+      this.logger.warn(`Could not fetch approval policy for validation (slug=${slug}): ${e.message}`);
+      return null;
+    }
+  }
+
   async publish(tenantId: string, id: string, actorId?: string) {
     const existing = await this.findOne(tenantId, id);
     if (existing.status === 'active') return existing;
+
+    // Backend is the final authority — re-validate the persisted XML
+    // regardless of what any client already checked. A blocking finding
+    // refuses the publish outright (400), with the exact findings attached
+    // so the caller can show precisely what's wrong.
+    const findings = await this.validate(tenantId, id);
+    if (hasBlockingFindings(findings)) {
+      throw new BadRequestException({
+        message: 'This process cannot be published — it has validation errors the runtime cannot execute safely.',
+        findings,
+      });
+    }
+
     // Supersede prior versions of the same slug. Hard-delete any version with no
     // live (running/suspended) instances so old versions don't accumulate; archive
     // any that still have live instances so those keep running on their own row.

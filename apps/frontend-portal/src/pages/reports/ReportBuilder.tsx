@@ -15,6 +15,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import { reportApi } from '../../api/client';
 import { toCsv, downloadCsv } from '../../lib/csv';
+import BackButton from '../../components/BackButton';
 
 interface ColumnMeta { key: string; label: string; type: string; filterable: boolean; sortable: boolean; }
 interface SourceMeta { key: string; label: string; defaultColumns: string[]; columns: ColumnMeta[]; }
@@ -170,6 +171,7 @@ export default function ReportBuilder() {
 
   return (
     <Box>
+      <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
       <Box display="flex" alignItems="center" gap={1.5} mb={1}>
         <AssessmentIcon color="primary" sx={{ fontSize: 32 }} />
         <Box>

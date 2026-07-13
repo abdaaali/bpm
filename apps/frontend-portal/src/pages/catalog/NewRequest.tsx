@@ -14,8 +14,6 @@ import {
   CircularProgress, Divider, Chip, Stepper, Step, StepLabel,
   LinearProgress,
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import { processApi, caseApi } from '../../api/client';
@@ -23,6 +21,7 @@ import {
   parseStartFormFields, FALLBACK_FORMS, genBizKey, BIZ_PREFIXES,
   buildInitialValues, isFormComplete, DynField, FieldDef,
 } from '../process-studio/startFormHelpers';
+import BackButton from '../../components/BackButton';
 
 // Reverse of the case-service TYPE_PROCESS map: pick a meaningful case type for
 // the chosen process so type-specific case UI (e.g. change panels) still applies.
@@ -66,28 +65,6 @@ function getSlaLabel(slug: string): string {
   return map[slug] || '1–3 business days';
 }
 
-// ── Submitted confirmation screen ────────────────────────────────────────────
-
-function SubmittedScreen({ requestId, businessKey, onView }: { requestId: string; businessKey: string; onView: () => void }) {
-  return (
-    <Box display="flex" flexDirection="column" alignItems="center" textAlign="center" mt={8} mb={4}>
-      <CheckCircleOutlineIcon sx={{ fontSize: 72, color: 'success.main', mb: 2 }} />
-      <Typography variant="h5" fontWeight={700} mb={1}>Request Submitted Successfully</Typography>
-      <Typography variant="body1" color="text.secondary" mb={0.5}>
-        Your request has been received and is being processed.
-      </Typography>
-      <Chip label={businessKey} color="primary" sx={{ my: 2, fontFamily: 'monospace', fontWeight: 600 }} />
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        You can track the progress of your request at any time.
-      </Typography>
-      <Box display="flex" gap={2}>
-        <Button variant="contained" onClick={onView}>Track My Request</Button>
-        <Button variant="outlined" onClick={() => window.history.back()}>Back to Catalog</Button>
-      </Box>
-    </Box>
-  );
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function NewRequest() {
@@ -96,8 +73,6 @@ export default function NewRequest() {
 
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
-  const [submittedId, setSubmittedId] = useState<string | null>(null);
-  const [submittedKey, setSubmittedKey] = useState('');
 
   // Load process definition
   const { data: def, isLoading } = useQuery(
@@ -129,8 +104,7 @@ export default function NewRequest() {
     }),
     {
       onSuccess: (c: any) => {
-        setSubmittedId(c.id);
-        setSubmittedKey(c.case_number || bizKey);
+        navigate(`/cases/${c.id}`, { state: { justSubmitted: true, businessKey: c.case_number || bizKey } });
       },
       onError: (e: any) => setError(e.response?.data?.message || e.message || 'Failed to submit request'),
     },
@@ -144,18 +118,11 @@ export default function NewRequest() {
     return <Alert severity="error">Service not found.</Alert>;
   }
 
-  // ── Submitted confirmation ────────────────────────────────────────────────
-  if (submittedId) {
-    return <SubmittedScreen requestId={submittedId} businessKey={submittedKey} onView={() => navigate(`/cases/${submittedId}`)} />;
-  }
-
   // ── Request form ──────────────────────────────────────────────────────────
   return (
     <Box>
       {/* Back */}
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/catalog')} sx={{ mb: 2 }}>
-        Service Catalog
-      </Button>
+      <BackButton to="/catalog" label="Back to Service Catalog" sx={{ mb: 2 }} />
 
       {/* Service header */}
       <Box sx={{ mb: 4, p: 3, borderRadius: 2, bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.100' }}>

@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { PROCESS_INSTANCE_STATUS_COLORS as STATUS_COLORS } from '../../utils/statusColors';
 import EmptyState from '../../components/EmptyState';
 import DataTable, { DataTableColumn } from '../../components/DataTable';
+import BackButton from '../../components/BackButton';
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -96,6 +97,7 @@ export default function ProcessInstances() {
 
   return (
     <Box>
+      <BackButton to="/processes" label="Back to Process Studio" sx={{ mb: 1 }} />
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Process Monitor</Typography>

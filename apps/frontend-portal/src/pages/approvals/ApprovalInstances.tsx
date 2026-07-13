@@ -9,6 +9,7 @@ import {
 import { approvalApi } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { format } from 'date-fns';
+import BackButton from '../../components/BackButton';
 
 const STATUS_COLOR: Record<string, any> = {
   pending: 'warning', approved: 'success', rejected: 'error',
@@ -72,6 +73,7 @@ export default function ApprovalInstances() {
 
   return (
     <Box>
+      <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Approval Instances</Typography>
         <FormControl size="small" sx={{ minWidth: 160 }}>

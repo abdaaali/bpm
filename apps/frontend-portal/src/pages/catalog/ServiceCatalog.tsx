@@ -20,13 +20,12 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import ComputerIcon from '@mui/icons-material/Computer';
 import StorageIcon from '@mui/icons-material/Storage';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import ListAltIcon from '@mui/icons-material/ListAlt';
-import { processApi, caseApi } from '../../api/client';
+import { processApi } from '../../api/client';
 import { FALLBACK_FORMS } from '../process-studio/startFormHelpers';
-import { useAuth } from '../../auth/AuthContext';
+import BackButton from '../../components/BackButton';
 
 // Requests still awaiting completion — mirrors MyRequests.tsx's OPEN_STATUSES.
-const OPEN_CASE_STATUSES = ['new', 'open', 'in_progress', 'pending_approval', 'approved'];
+export const OPEN_CASE_STATUSES = ['new', 'open', 'in_progress', 'pending_approval', 'approved'];
 
 // ── Category / icon helpers ──────────────────────────────────────────────────
 
@@ -83,21 +82,12 @@ function getEstTime(category: string): string {
 
 export default function ServiceCatalog() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [search, setSearch] = useState('');
 
   const { data, isLoading } = useQuery(
     'catalog-defs',
     () => processApi.listDefs(1, 100),
     { staleTime: 60_000 },
-  );
-
-  // Count of the current user's own open requests (cases), matching MyRequests.tsx —
-  // NOT all active process instances platform-wide.
-  const { data: myRequestsData } = useQuery(
-    ['my-requests-count', user?.id],
-    () => caseApi.list({ requesterId: user?.id, status: OPEN_CASE_STATUSES.join(',') }, 1, 1),
-    { staleTime: 30_000, enabled: !!user },
   );
 
   const allDefs: any[] = (data?.data || []).filter((d: any) => d.status === 'active');
@@ -119,26 +109,14 @@ export default function ServiceCatalog() {
 
   return (
     <Box>
+      <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
       {/* ── Header ── */}
       <Box sx={{ mb: 4 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={2}>
-          <Box>
-            <Typography variant="h4" fontWeight={700}>Service Catalog</Typography>
-            <Typography variant="body2" color="text.secondary" mt={0.5}>
-              Browse available services and submit requests
-            </Typography>
-          </Box>
-          <Button
-            variant="outlined"
-            startIcon={<ListAltIcon />}
-            onClick={() => navigate('/my-requests')}
-          >
-            My Requests
-            {(myRequestsData?.total ?? 0) > 0 && (
-              <Chip label={myRequestsData!.total} size="small" color="primary"
-                sx={{ ml: 1, height: 18, fontSize: 11 }} />
-            )}
-          </Button>
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h4" fontWeight={700}>Service Catalog</Typography>
+          <Typography variant="body2" color="text.secondary" mt={0.5}>
+            Browse available services and submit requests
+          </Typography>
         </Box>
 
         <TextField

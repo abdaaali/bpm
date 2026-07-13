@@ -10,6 +10,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import { approvalApi } from '../../api/client';
+import BackButton from '../../components/BackButton';
 
 const STEP_TYPES = [
   { value: 'hierarchy',        label: 'Hierarchy (Manager Chain)' },
@@ -139,6 +140,7 @@ export default function ApprovalPolicies() {
 
   return (
     <Box>
+      <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Approval Policies</Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>New Policy</Button>

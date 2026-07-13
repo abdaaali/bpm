@@ -10,6 +10,7 @@ import MyRequests from '../catalog/MyRequests';
 import TeamQueue from './TeamQueue';
 import { caseApi } from '../../api/client';
 import { useAccess } from '../../auth/useAccess';
+import BackButton from '../../components/BackButton';
 
 // Unified personal cockpit, framed around the end user's three questions:
 //   To Do        — what needs my action (assigned cases + approvals)
@@ -41,6 +42,7 @@ export default function Workplace() {
 
   return (
     <Box>
+      <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
       <Typography variant="h4" fontWeight={700} gutterBottom>My Workplace</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         What needs your action, the requests you raised, and work you can pick up — in one place.

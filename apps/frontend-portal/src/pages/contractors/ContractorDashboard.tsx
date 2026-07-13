@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import { useQuery } from 'react-query';
 import { contractorApi } from '../../api/client';
+import BackButton from '../../components/BackButton';
 
 interface DashboardData {
   kpis: {
@@ -65,6 +66,7 @@ export default function ContractorDashboard() {
   if (isError || !data) {
     return (
       <Box>
+        <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
         <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>Contractor Performance Dashboard</Typography>
         <Alert severity="warning">
           Dashboard data unavailable. The contractor service may not yet be configured.
@@ -77,6 +79,7 @@ export default function ContractorDashboard() {
 
   return (
     <Box>
+      <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" fontWeight={700}>Contractor Performance Dashboard</Typography>
         <ToggleButtonGroup

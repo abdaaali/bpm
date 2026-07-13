@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { useQuery } from 'react-query';
 import {
-  Box, Typography, Card, CardContent, Table, TableHead, TableBody, TableRow, TableCell,
-  TextField, Chip, TablePagination, CircularProgress, InputAdornment, MenuItem, Select,
+  Box, Typography, Card, CardContent,
+  TextField, Chip, InputAdornment, MenuItem, Select,
   FormControl, InputLabel,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import HistoryIcon from '@mui/icons-material/History';
 import { auditApi } from '../../api/client';
 import { format } from 'date-fns';
+import DataTable, { DataTableColumn } from '../../components/DataTable';
+import EmptyState from '../../components/EmptyState';
 
 const ENTITY_COLORS: Record<string, any> = {
   case: 'error', task: 'warning', process_instance: 'info',
@@ -25,6 +28,14 @@ export default function AuditLog() {
     () => auditApi.list({ entityType, action, actorId }, page + 1, 50),
     { keepPreviousData: true },
   );
+
+  const columns: DataTableColumn<any>[] = [
+    { key: 'time', label: 'Time', render: log => <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>{format(new Date(log.created_at), 'dd MMM HH:mm:ss')}</Typography> },
+    { key: 'entityType', label: 'Entity Type', render: log => <Chip label={log.entity_type} size="small" color={ENTITY_COLORS[log.entity_type] || 'default'} /> },
+    { key: 'entityId', label: 'Entity ID', render: log => <Typography variant="body2" fontFamily="monospace" fontSize={11}>{log.entity_id?.slice(0, 12)}…</Typography> },
+    { key: 'action', label: 'Action', render: log => <Chip label={log.action} size="small" variant="outlined" /> },
+    { key: 'actor', label: 'Actor', render: log => <Typography variant="body2" fontFamily="monospace" fontSize={11}>{log.actor_id ? `${log.actor_id.slice(0, 8)}…` : 'system'}</Typography> },
+  ];
 
   return (
     <Box>
@@ -50,55 +61,17 @@ export default function AuditLog() {
       </Card>
 
       <Card>
-        {isLoading ? (
-          <Box p={4} display="flex" justifyContent="center"><CircularProgress /></Box>
-        ) : (
-          <>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Time</TableCell>
-                  <TableCell>Entity Type</TableCell>
-                  <TableCell>Entity ID</TableCell>
-                  <TableCell>Action</TableCell>
-                  <TableCell>Actor</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {data?.data?.map((log: any) => (
-                  <TableRow key={log.id} hover>
-                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                      {format(new Date(log.created_at), 'dd MMM HH:mm:ss')}
-                    </TableCell>
-                    <TableCell>
-                      <Chip label={log.entity_type} size="small" color={ENTITY_COLORS[log.entity_type] || 'default'} />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" fontFamily="monospace" fontSize={11}>
-                        {log.entity_id?.slice(0, 12)}…
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip label={log.action} size="small" variant="outlined" />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" fontFamily="monospace" fontSize={11}>
-                        {log.actor_id ? `${log.actor_id.slice(0, 8)}…` : 'system'}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!data?.data?.length && (
-                  <TableRow><TableCell colSpan={5} align="center">No audit logs found</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-            <TablePagination
-              component="div" count={data?.total || 0} page={page} rowsPerPage={50}
-              onPageChange={(_, p) => setPage(p)} rowsPerPageOptions={[50]}
-            />
-          </>
-        )}
+        <DataTable
+          columns={columns}
+          rows={data?.data || []}
+          rowKey={log => log.id}
+          loading={isLoading}
+          emptyState={<EmptyState icon={<HistoryIcon fontSize="inherit" />} title="No audit logs found" description="Try a different filter." />}
+          page={page}
+          pageSize={50}
+          total={data?.total || 0}
+          onPageChange={setPage}
+        />
       </Card>
     </Box>
   );
