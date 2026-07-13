@@ -1,6 +1,6 @@
 # BPM Portal — End-to-End Business Process Management
 
-A Dockerized BPM/ITIL platform: multi-tenant org structure, configurable approval matrix, case
+Ad Dockerized BPM/ITIL platform: multi-tenant org structure, configurable approval matrix, case
 management, a no-code BPMN process studio (Process Studio), a service catalog with dynamic request
 forms, alarm ingestion, and a contractor portal + mobile PWA.
 
