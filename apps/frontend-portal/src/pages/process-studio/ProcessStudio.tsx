@@ -479,9 +479,11 @@ export default function ProcessStudio() {
             </Button>
           </Tooltip>
           {def.status !== 'active' && (
-            <Tooltip title={errorCount > 0
+            <Tooltip title={dirty
+              ? 'Save your changes first — Publish only affects the last saved version'
+              : errorCount > 0
               ? `Publish is blocked — ${errorCount} issue(s) must be fixed first (see Checks below)`
-              : dirty ? 'Save your changes, then publish' : 'Make this version live'}>
+              : 'Make this version live'}>
               <span>
                 <Button size="small" variant={!dirty && errorCount === 0 ? 'contained' : 'outlined'} color="success" startIcon={<PublishIcon />}
                   onClick={async () => {
@@ -489,7 +491,7 @@ export default function ProcessStudio() {
                     const errs = found.filter(c => c.blocking);
                     if (errs.length) { setSnack(`${errs.length} blocking issue(s) — review Checks before publishing`); return; }
                     publish.mutate();
-                  }} disabled={publish.isLoading || validating || errorCount > 0}>
+                  }} disabled={publish.isLoading || validating || dirty || errorCount > 0}>
                   {publish.isLoading ? 'Publishing…' : 'Publish'}
                 </Button>
               </span>
