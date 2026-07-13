@@ -65,4 +65,6 @@ export class OrgController {
   @Get('roles') getRoles(@Req() req: any, @Query() q: any) { return this.proxy.forward(ORG_URL(), 'GET', '/roles', undefined, hdrs(req), q); }
   @RequirePermission('org:manage')
   @Post('roles') createRole(@Req() req: any, @Body() b: any) { return this.proxy.forward(ORG_URL(), 'POST', '/roles', b, hdrs(req)); }
+  @RequirePermission('org:manage')
+  @Put('roles/:id') updateRole(@Req() req: any, @Param('id') id: string, @Body() b: any) { return this.proxy.forward(ORG_URL(), 'PUT', `/roles/${id}`, b, hdrs(req)); }
 }

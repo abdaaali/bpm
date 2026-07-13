@@ -20,4 +20,18 @@ export class RoleService {
     );
     return r.rows[0];
   }
+
+  async update(tenantId: string, id: string, dto: { name?: string; permissions?: string[]; description?: string }) {
+    const r = await this.db.query(
+      `UPDATE roles SET
+         name = COALESCE($3, name),
+         permissions = COALESCE($4::jsonb, permissions),
+         description = COALESCE($5, description),
+         updated_at = NOW()
+       WHERE tenant_id = $1 AND id = $2
+       RETURNING *`,
+      [tenantId, id, dto.name ?? null, dto.permissions ? JSON.stringify(dto.permissions) : null, dto.description ?? null],
+    );
+    return r.rows[0];
+  }
 }

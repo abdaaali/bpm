@@ -46,6 +46,7 @@ export const orgApi = {
 
   // Roles
   getRoles:            ()                        => axios.get(`${BASE}/roles`, { headers: headers() }).then(r => r.data),
+  updateRole:          (id: string, dto: any)    => axios.put(`${BASE}/roles/${id}`, dto, { headers: headers() }).then(r => r.data),
 };
 
 // ── Approval ──────────────────────────────────────────────────────────────────

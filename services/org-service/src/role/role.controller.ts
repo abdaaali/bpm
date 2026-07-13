@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query, Req } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { RoleService } from './role.service';
 
@@ -15,5 +15,9 @@ export class RoleController {
   @Post() create(@Req() req: any, @Body() body: any) {
     const tid = req.headers['x-tenant-id'] || 'a0000000-0000-0000-0000-000000000001';
     return this.svc.create(tid, body);
+  }
+  @Put(':id') update(@Req() req: any, @Param('id') id: string, @Body() body: any) {
+    const tid = req.headers['x-tenant-id'] || 'a0000000-0000-0000-0000-000000000001';
+    return this.svc.update(tid, id, body);
   }
 }

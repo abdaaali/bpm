@@ -15,6 +15,7 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import BusinessIcon from '@mui/icons-material/Business';
 import { orgApi } from '../../api/client';
+import { useAccess } from '../../auth/useAccess';
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -422,6 +423,7 @@ function ConfirmDialog({ open, title, message, onConfirm, onClose, confirmColor 
 
 export default function OrgStructure() {
   const qc = useQueryClient();
+  const { can } = useAccess();
   const [tab, setTab] = useState(0);
   const [search, setSearch] = useState('');
 
@@ -429,9 +431,15 @@ export default function OrgStructure() {
   const [orgUnitDlg, setOrgUnitDlg] = useState<{ open: boolean; initial?: any; parentId?: string }>({ open: false });
   const [posDlg, setPosDlg] = useState<{ open: boolean; initial?: any }>({ open: false });
   const [userDlg, setUserDlg] = useState<{ open: boolean; initial?: any }>({ open: false });
+  const [roleDlg, setRoleDlg] = useState<{ open: boolean; role?: any }>({ open: false });
   const [confirmDlg, setConfirmDlg] = useState<{ open: boolean; title: string; message: string; onConfirm: () => Promise<any> }>({
     open: false, title: '', message: '', onConfirm: async () => {},
   });
+
+  const saveRole = useMutation(
+    (dto: any) => orgApi.updateRole(roleDlg.role.id, dto),
+    { onSuccess: () => { qc.invalidateQueries('org-roles'); setRoleDlg({ open: false }); } },
+  );
 
   const invalidate = useCallback(() => {
     qc.invalidateQueries('org-tree');
@@ -625,9 +633,19 @@ export default function OrgStructure() {
             <Grid item key={r.id} xs={12} sm={6} md={4}>
               <Card variant="outlined">
                 <CardContent>
-                  <Typography variant="subtitle1" fontWeight={600}>{r.name}</Typography>
-                  <Typography variant="caption" color="text.secondary">{r.key || r.slug}</Typography>
+                  <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={600}>{r.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">{r.key || r.slug}</Typography>
+                    </Box>
+                    {can('org:manage') && (
+                      <IconButton size="small" onClick={() => setRoleDlg({ open: true, role: r })}><EditIcon fontSize="small" /></IconButton>
+                    )}
+                  </Box>
                   {r.description && <Typography variant="body2" mt={1}>{r.description}</Typography>}
+                  <Typography variant="caption" color="text.secondary" mt={1} sx={{ display: 'block', wordBreak: 'break-word' }}>
+                    {(r.permissions || []).join(', ') || 'No permissions'}
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>
@@ -638,6 +656,40 @@ export default function OrgStructure() {
             </Grid>
           )}
         </Grid>
+      )}
+      {roleDlg.open && (
+        <Dialog open onClose={() => setRoleDlg({ open: false })} maxWidth="sm" fullWidth>
+          <DialogTitle>Edit Role — {roleDlg.role.name}</DialogTitle>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <TextField label="Name" defaultValue={roleDlg.role.name} id="role-name" size="small" />
+            <TextField label="Description" defaultValue={roleDlg.role.description || ''} id="role-description" size="small" multiline rows={2} />
+            <TextField
+              label="Permissions (comma-separated resource:action strings)"
+              defaultValue={(roleDlg.role.permissions || []).join(', ')}
+              id="role-permissions"
+              size="small"
+              multiline
+              rows={3}
+              helperText='e.g. "cases:read, cases:create, tasks:*" — use "*" for unrestricted admin access'
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setRoleDlg({ open: false })}>Cancel</Button>
+            <Button
+              variant="contained"
+              disabled={saveRole.isLoading}
+              onClick={() => {
+                const name = (document.getElementById('role-name') as HTMLInputElement).value;
+                const description = (document.getElementById('role-description') as HTMLInputElement).value;
+                const permissions = (document.getElementById('role-permissions') as HTMLInputElement).value
+                  .split(',').map(s => s.trim()).filter(Boolean);
+                saveRole.mutate({ name, description, permissions });
+              }}
+            >
+              {saveRole.isLoading ? 'Saving…' : 'Save'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       )}
 
       {/* ── Dialogs ── */}
