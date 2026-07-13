@@ -14,7 +14,6 @@ import {
 } from 'recharts';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import BarChartIcon from '@mui/icons-material/BarChart';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import FolderIcon from '@mui/icons-material/Folder';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -123,16 +122,6 @@ export default function Dashboard() {
           <Typography variant="body2" color="text.secondary">
             Platform-wide operational health. Your personal queue lives in My Workplace.
           </Typography>
-        </Box>
-        <Box display="flex" gap={1} flexWrap="wrap">
-          <Button variant="outlined" startIcon={<AssignmentIcon />} onClick={() => navigate('/workplace')}>
-            My Workplace
-          </Button>
-          {isDesigner && (
-            <Button variant="contained" startIcon={<BarChartIcon />} onClick={() => navigate('/processes/analytics')}>
-              Full Analytics
-            </Button>
-          )}
         </Box>
       </Box>
 

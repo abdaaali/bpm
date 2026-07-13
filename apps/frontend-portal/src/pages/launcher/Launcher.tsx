@@ -35,6 +35,7 @@ export const DASHBOARDS: Tile[] = [
   { title: 'Process Performance', desc: 'Cycle time, bottlenecks, workload', icon: <BarChartIcon />, path: '/processes/analytics', color: '#2e7d32', perm: 'analytics:read' },
   { title: 'Report Generator', desc: 'Build, export and save custom CSV reports', icon: <AssessmentIcon />, path: '/reports', color: '#ad1457', perm: 'analytics:read' },
   { title: 'Management Digest', desc: 'Weekly governance digest — schedule & recipients', icon: <NotificationsIcon />, path: '/digest', color: '#00695c', perm: 'analytics:read' },
+  { title: 'Root Cause Analysis', desc: 'RCA dashboards and taxonomy', icon: <PsychologyIcon />, path: '/rca', color: '#5d4037', perm: 'rca:read' },
 ];
 
 export const ADMINISTRATION: Tile[] = [
