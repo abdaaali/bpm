@@ -21,7 +21,7 @@ export class TemplateService {
 
   async findAll(tenantId: string) {
     const r = await this.db.query(
-      `SELECT id, name, slug, channel, subject, created_at FROM notification_templates WHERE tenant_id=$1 ORDER BY name`,
+      `SELECT id, name, slug, channel, subject, is_active, created_at FROM notification_templates WHERE tenant_id=$1 ORDER BY name`,
       [tenantId],
     );
     return r.rows;
@@ -36,7 +36,7 @@ export class TemplateService {
     return r.rows[0];
   }
 
-  async render(tenantId: string, slug: string, variables: Record<string, any>): Promise<{ subject: string; body: string; channel: string }> {
+  async render(tenantId: string, slug: string, variables: Record<string, any>): Promise<{ subject: string; body: string; channel: string; isActive: boolean }> {
     const tpl = await this.findBySlug(tenantId, slug);
     const cacheKey = `${tpl.id}:${tpl.updated_at}`;
     if (!this.cache.has(cacheKey)) {
@@ -47,17 +47,18 @@ export class TemplateService {
       subject: subjectTpl(variables),
       body: this.cache.get(cacheKey)!(variables),
       channel: tpl.channel,
+      isActive: tpl.is_active,
     };
   }
 
   async upsert(tenantId: string, dto: any, actorId?: string) {
     const r = await this.db.query(
-      `INSERT INTO notification_templates(tenant_id, name, slug, channel, subject, body)
-       VALUES($1,$2,$3,$4,$5,$6)
+      `INSERT INTO notification_templates(tenant_id, name, slug, channel, subject, body, is_active)
+       VALUES($1,$2,$3,$4,$5,$6,$7)
        ON CONFLICT(tenant_id,slug) DO UPDATE SET name=EXCLUDED.name, channel=EXCLUDED.channel,
-         subject=EXCLUDED.subject, body=EXCLUDED.body, updated_at=NOW()
+         subject=EXCLUDED.subject, body=EXCLUDED.body, is_active=EXCLUDED.is_active, updated_at=NOW()
        RETURNING *`,
-      [tenantId, dto.name, dto.slug, dto.channel || 'in_app', dto.subject || '', dto.body],
+      [tenantId, dto.name, dto.slug, dto.channel || 'in_app', dto.subject || '', dto.body, dto.is_active ?? true],
     );
     this.cache.clear(); // clear render cache
     return r.rows[0];

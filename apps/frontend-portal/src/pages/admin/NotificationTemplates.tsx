@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import {
   Box, Typography, Grid, Card, CardContent, List, ListItemButton, ListItemText,
   TextField, Select, MenuItem, FormControl, InputLabel, Button, Chip, Divider,
-  Snackbar, Alert, CircularProgress, Tooltip, Paper,
+  Snackbar, Alert, CircularProgress, Tooltip, Paper, Switch, FormControlLabel,
 } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import EmailIcon from '@mui/icons-material/Email';
@@ -64,7 +64,7 @@ export default function NotificationTemplates() {
   const qc = useQueryClient();
   const { data: templates = [], isLoading } = useQuery('notif-templates', () => notifApi.listTemplates());
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', channel: 'in_app', subject: '', body: '' });
+  const [form, setForm] = useState({ name: '', channel: 'in_app', subject: '', body: '', is_active: true });
   const [snack, setSnack] = useState<{ msg: string; sev: 'success' | 'error' } | null>(null);
 
   // Select first template once loaded
@@ -79,7 +79,7 @@ export default function NotificationTemplates() {
     { enabled: !!selectedSlug },
   );
   useEffect(() => {
-    if (current) setForm({ name: current.name || '', channel: current.channel || 'in_app', subject: current.subject || '', body: current.body || '' });
+    if (current) setForm({ name: current.name || '', channel: current.channel || 'in_app', subject: current.subject || '', body: current.body || '', is_active: current.is_active ?? true });
   }, [current?.id, current?.slug]);
 
   const saveMut = useMutation(
@@ -95,7 +95,7 @@ export default function NotificationTemplates() {
   );
 
   const tokens = useMemo(() => extractTokens(`${form.subject} ${form.body}`), [form.subject, form.body]);
-  const dirty = current && (form.name !== current.name || form.channel !== current.channel || form.subject !== current.subject || form.body !== current.body);
+  const dirty = current && (form.name !== current.name || form.channel !== current.channel || form.subject !== current.subject || form.body !== current.body || form.is_active !== (current.is_active ?? true));
   const set = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   if (isLoading) return <Box p={4} textAlign="center"><CircularProgress /></Box>;
@@ -126,6 +126,7 @@ export default function NotificationTemplates() {
                   />
                   <Chip size="small" label={t.channel} color={channelColor[t.channel]} variant="outlined"
                     icon={t.channel !== 'in_app' ? <EmailIcon sx={{ fontSize: 14 }} /> : undefined} sx={{ height: 20 }} />
+                  {!t.is_active && <Chip size="small" label="Inactive" variant="outlined" sx={{ height: 20, ml: 0.5 }} />}
                 </ListItemButton>
               ))}
             </List>
@@ -146,6 +147,10 @@ export default function NotificationTemplates() {
                     {CHANNELS.map(c => <MenuItem key={c.value} value={c.value}>{c.label}</MenuItem>)}
                   </Select>
                 </FormControl>
+                <FormControlLabel
+                  control={<Switch checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} />}
+                  label={form.is_active ? 'Active' : 'Inactive (delivery suppressed)'}
+                />
                 <TextField label="Subject" size="small" value={form.subject} onChange={set('subject')} fullWidth />
                 <TextField label="Body (HTML + Handlebars)" size="small" value={form.body} onChange={set('body')}
                   fullWidth multiline minRows={8} InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13 } }} />
@@ -163,7 +168,7 @@ export default function NotificationTemplates() {
                 <Button variant="contained" disabled={!dirty || saveMut.isLoading} onClick={() => saveMut.mutate()}>
                   {saveMut.isLoading ? 'Saving…' : 'Save'}
                 </Button>
-                <Button disabled={!dirty} onClick={() => current && setForm({ name: current.name, channel: current.channel, subject: current.subject, body: current.body })}>
+                <Button disabled={!dirty} onClick={() => current && setForm({ name: current.name, channel: current.channel, subject: current.subject, body: current.body, is_active: current.is_active ?? true })}>
                   Reset
                 </Button>
               </Box>

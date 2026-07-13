@@ -38,7 +38,7 @@ export class NotificationService {
   }
 
   async send(dto: SendNotificationDto): Promise<void> {
-    let rendered: { subject: string; body: string; channel: string };
+    let rendered: { subject: string; body: string; channel: string; isActive: boolean };
     try {
       rendered = await this.templateSvc.render(dto.tenantId, dto.templateSlug, dto.variables);
     } catch (e) {
@@ -47,7 +47,13 @@ export class NotificationService {
         subject: dto.variables.subject || 'BPM Notification',
         body: JSON.stringify(dto.variables),
         channel: 'in_app',
+        isActive: true,
       };
+    }
+
+    if (!rendered.isActive) {
+      this.logger.log(`Template '${dto.templateSlug}' is deactivated — notification suppressed`);
+      return;
     }
 
     // Always persist as in_app notification
