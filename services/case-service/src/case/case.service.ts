@@ -96,7 +96,42 @@ export class CaseService {
     return r.rows[0]?.id || null;
   }
 
-  async findAll(tenantId: string, filters: any, page = 1, pageSize = 20) {
+  /**
+   * Role-based visibility scope for cases:read. Returns null for roles with
+   * full tenant visibility (no extra filter needed). Returns a SQL fragment
+   * (using the given 1-based placeholder index) plus the bound value for
+   * roles that must be scoped, or a fragment that never matches if the
+   * caller's roles don't map to any known tier (fail closed, not open).
+   */
+  private async buildRoleScope(
+    tenantId: string, roles: string[] | undefined, actorId: string | undefined, paramIndex: number,
+  ): Promise<{ sql: string; val: string } | null> {
+    if (!roles?.length) return null; // internal/unscoped callers (assign(), claimCase()) — no filter
+    const FULL_VISIBILITY = new Set(['admin', 'manager', 'noc']);
+    if (roles.some(r => FULL_VISIBILITY.has(r))) return null;
+
+    const uid = await this.resolveUserId(actorId, tenantId);
+    if (!uid) return { sql: '1=0', val: '' }; // can't resolve identity — fail closed
+
+    const TEAM_SCOPED = new Set(['field_engineer', 'it_engineer', 'security', 'logistics']);
+    const OWN_ONLY = new Set(['requester', 'process_designer']);
+    const APPROVER = new Set(['approver', 'cab_member', 'finance_controller']);
+
+    const fragments: string[] = [];
+    if (roles.some(r => TEAM_SCOPED.has(r))) {
+      fragments.push(`(c.assignee_id = $${paramIndex} OR c.assigned_team_id IN (SELECT org_unit_id FROM user_org_assignments WHERE user_id = $${paramIndex}))`);
+    }
+    if (roles.some(r => OWN_ONLY.has(r) || APPROVER.has(r))) {
+      fragments.push(`c.requester_id = $${paramIndex}`);
+    }
+    if (roles.some(r => APPROVER.has(r))) {
+      fragments.push(`EXISTS (SELECT 1 FROM approval_instances ai JOIN approval_step_decisions asd ON asd.instance_id = ai.id WHERE ai.tenant_id = c.tenant_id AND ai.entity_type = 'case' AND ai.entity_id = c.id AND asd.approver_id = $${paramIndex} AND asd.decision IS NULL)`);
+    }
+    if (!fragments.length) return { sql: '1=0', val: uid }; // unrecognized role — fail closed
+    return { sql: `(${fragments.join(' OR ')})`, val: uid };
+  }
+
+  async findAll(tenantId: string, filters: any, page = 1, pageSize = 20, roles?: string[]) {
     const { limit, offset } = this.db.paginate(page, pageSize);
     const conds: string[] = ['c.tenant_id=$1'];
     const vals: any[] = [tenantId];
@@ -123,6 +158,8 @@ export class CaseService {
     if (filters.teamId)     { conds.push(`c.assigned_team_id=$${i++}`); vals.push(filters.teamId); }
     if (filters.search)     { conds.push(`(c.title ILIKE $${i} OR c.case_number ILIKE $${i})`); vals.push(`%${filters.search}%`); i++; }
     if (filters.breached === 'true') { conds.push(`c.breached=true`); }
+    const scope = await this.buildRoleScope(tenantId, roles, filters.actorId, i);
+    if (scope) { conds.push(scope.sql); vals.push(scope.val); i++; }
     const where = conds.join(' AND ');
     const [rows, count] = await Promise.all([
       this.db.query(
@@ -142,7 +179,7 @@ export class CaseService {
     return { data: rows.rows, total: parseInt(count.rows[0].count), page, pageSize };
   }
 
-  async findOne(tenantId: string, id: string, actorId?: string) {
+  async findOne(tenantId: string, id: string, actorId?: string, roles?: string[]) {
     const r = await this.db.query(
       `SELECT c.*,
               (u.first_name || ' ' || u.last_name) as requester_name,
@@ -159,13 +196,50 @@ export class CaseService {
     );
     if (!r.rows.length) throw new NotFoundException('Case not found');
     const row = r.rows[0];
+    const uid = actorId ? await this.resolveUserId(actorId, tenantId) : null;
     // Ownership flag for the caller — lets clients gate work actions (claim vs
     // begin/resolve) on whether the case is actually assigned to them.
-    if (actorId) {
-      const uid = await this.resolveUserId(actorId, tenantId);
-      row.mine = !!uid && row.assignee_id === uid;
+    if (actorId) row.mine = !!uid && row.assignee_id === uid;
+    // Role-based visibility: 403 (not 404) when the case exists but the
+    // caller's role tier doesn't cover it — confirmed product decision, not
+    // the simpler "just 404 it" default.
+    if (roles?.length) {
+      const inScope = await this.isInRoleScope(row, roles, uid);
+      if (!inScope) throw new ForbiddenException('You do not have access to this case');
     }
     return row;
+  }
+
+  /** In-process scope check for a single already-fetched case row (findOne's 403 path). */
+  private async isInRoleScope(row: any, roles: string[], uid: string | null): Promise<boolean> {
+    const FULL_VISIBILITY = new Set(['admin', 'manager', 'noc']);
+    if (roles.some(r => FULL_VISIBILITY.has(r))) return true;
+    if (!uid) return false;
+
+    const TEAM_SCOPED = new Set(['field_engineer', 'it_engineer', 'security', 'logistics']);
+    const OWN_ONLY = new Set(['requester', 'process_designer']);
+    const APPROVER = new Set(['approver', 'cab_member', 'finance_controller']);
+
+    if (roles.some(r => TEAM_SCOPED.has(r))) {
+      if (row.assignee_id === uid) return true;
+      if (row.assigned_team_id) {
+        const member = await this.db.query(
+          `SELECT 1 FROM user_org_assignments WHERE user_id=$1 AND org_unit_id=$2 LIMIT 1`,
+          [uid, row.assigned_team_id],
+        );
+        if (member.rowCount) return true;
+      }
+    }
+    if (roles.some(r => OWN_ONLY.has(r) || APPROVER.has(r)) && row.requester_id === uid) return true;
+    if (roles.some(r => APPROVER.has(r))) {
+      const pending = await this.db.query(
+        `SELECT 1 FROM approval_instances ai JOIN approval_step_decisions asd ON asd.instance_id = ai.id
+         WHERE ai.tenant_id = $1 AND ai.entity_type = 'case' AND ai.entity_id = $2 AND asd.approver_id = $3 AND asd.decision IS NULL`,
+        [row.tenant_id, row.id, uid],
+      );
+      if (pending.rowCount) return true;
+    }
+    return false;
   }
 
   private async nextCaseNumber(tenantId: string, type: string): Promise<string> {

@@ -57,11 +57,11 @@ export class CaseController {
     @Query('teamId') teamId?: string,
     @Query('search') search?: string,
     @Query('breached') breached?: string,
-  ) { return this.svc.findAll(this.tenant(h), { type, status, priority, assigneeId, requesterId, teamId, search, breached }, page, pageSize); }
+  ) { return this.svc.findAll(this.tenant(h), { type, status, priority, assigneeId, requesterId, teamId, search, breached, actorId: this.actor(h) }, page, pageSize, this.roles(h)); }
 
   @Get(':id')
   findOne(@Headers() h: Record<string, string>, @Param('id') id: string) {
-    return this.svc.findOne(this.tenant(h), id, this.actor(h));
+    return this.svc.findOne(this.tenant(h), id, this.actor(h), this.roles(h));
   }
 
   @Post()
