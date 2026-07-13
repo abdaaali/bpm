@@ -2,9 +2,9 @@
  * Shared helpers for the "New Request / Start Process" form.
  * Used by both ProcessInstances.tsx and Dashboard.tsx.
  */
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  Box, TextField, Select, MenuItem, FormControl, InputLabel, FormControlLabel, Checkbox, Typography,
+  Box, TextField, Select, MenuItem, FormControl, InputLabel, FormControlLabel, Checkbox, Typography, Button,
 } from '@mui/material';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -12,7 +12,7 @@ import {
 export type FieldDef = {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'textarea' | 'select' | 'date' | 'checkbox';
+  type: 'text' | 'number' | 'textarea' | 'select' | 'date' | 'checkbox' | 'file';
   required?: boolean;
   options?: string; // comma-separated values for select
   placeholder?: string;
@@ -186,6 +186,31 @@ export function DynField({ field, value, onChange }: {
   value: string;
   onChange: (v: string) => void;
 }) {
+  if (field.type === 'file') {
+    const [uploading, setUploading] = useState(false);
+    const [fileName, setFileName] = useState('');
+    return (
+      <Box>
+        <Typography variant="body2" sx={{ mb: 0.5 }}>{field.label}{field.required && ' *'}</Typography>
+        <Button component="label" size="small" variant="outlined" disabled={uploading}>
+          {uploading ? 'Uploading…' : value ? `Replace file (${fileName || 'uploaded'})` : 'Choose file'}
+          <input type="file" hidden onChange={async e => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+            setUploading(true);
+            setFileName(f.name);
+            try {
+              const { attachmentApi } = await import('../../api/client');
+              const att = await attachmentApi.upload('form-field-staging', 'pending', f);
+              onChange(att.id);
+            } finally {
+              setUploading(false);
+            }
+          }} />
+        </Button>
+      </Box>
+    );
+  }
   if (field.type === 'checkbox') {
     return (
       <FormControlLabel

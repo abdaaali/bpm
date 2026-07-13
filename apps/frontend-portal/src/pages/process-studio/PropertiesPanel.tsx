@@ -17,7 +17,7 @@ import { parseOptions, serializeOptions, slugify } from './startFormHelpers';
 export interface FormField {
   key: string;
   label: string;
-  type: 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox';
+  type: 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox' | 'file';
   required: boolean;
   options?: string;
 }
@@ -262,6 +262,7 @@ function FormFieldEditor({ fields, onChange, addLabel }: {
                   <MenuItem value="date">Date</MenuItem>
                   <MenuItem value="select">Dropdown</MenuItem>
                   <MenuItem value="checkbox">Checkbox</MenuItem>
+                  <MenuItem value="file">File Upload</MenuItem>
                 </Select>
               </FormControl>
               {f.type === 'select' && (

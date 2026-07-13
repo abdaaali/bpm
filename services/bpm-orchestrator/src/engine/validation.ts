@@ -48,7 +48,7 @@ export const PARSED_BUT_UNSUPPORTED_ELEMENT_TYPES = new Set([
 ]);
 
 export const SUPPORTED_SERVICE_TYPES = new Set(['notification', 'connector', 'script']);
-export const SUPPORTED_FORM_FIELD_TYPES = new Set(['text', 'textarea', 'number', 'date', 'select', 'checkbox']);
+export const SUPPORTED_FORM_FIELD_TYPES = new Set(['text', 'textarea', 'number', 'date', 'select', 'checkbox', 'file']);
 export const RESERVED_VARIABLE_KEYS = new Set(['decision', 'approved']);
 export const SUPPORTED_START_MODES = new Set(['service_catalog', 'api', 'system']);
 const VARIABLE_KEY_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;

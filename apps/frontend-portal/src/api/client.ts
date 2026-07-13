@@ -160,6 +160,20 @@ export const notifApi = {
   saveTemplate:  (slug: string, dto: any)    => axios.put(`${BASE}/notifications/templates/${slug}`, dto, { headers: headers() }).then(r => r.data),
 };
 
+// ── Attachments ────────────────────────────────────────────────────────────
+export const attachmentApi = {
+  list:   (entityType: string, entityId: string) => axios.get(`${BASE}/attachments/${entityType}/${entityId}`, { headers: headers() }).then(r => r.data),
+  upload: (entityType: string, entityId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return axios.post(`${BASE}/attachments/${entityType}/${entityId}`, form, {
+      headers: { ...headers(), 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data);
+  },
+  getUrl: (id: string) => axios.get(`${BASE}/attachments/file/${id}/url`, { headers: headers() }).then(r => r.data),
+  remove: (id: string) => axios.delete(`${BASE}/attachments/file/${id}`, { headers: headers() }).then(r => r.data),
+};
+
 // ── Audit ──────────────────────────────────────────────────────────────────
 export const auditApi = {
   list: (q: any, p = 1, ps = 50) => axios.get(`${BASE}/audit`, { params: { ...q, page: p, pageSize: ps }, headers: headers() }).then(r => r.data),

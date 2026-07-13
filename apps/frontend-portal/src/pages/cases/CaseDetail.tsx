@@ -24,7 +24,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import LinkIcon from '@mui/icons-material/Link';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import { caseApi, orgApi, processApi, rcaApi, datahubApi, contractorApi } from '../../api/client';
+import { caseApi, orgApi, processApi, rcaApi, datahubApi, contractorApi, attachmentApi } from '../../api/client';
 import { useAccess } from '../../auth/useAccess';
 import PageHeader from '../../components/PageHeader';
 import ProcessActionPanel from '../inbox/ProcessActionPanel';
@@ -193,6 +193,10 @@ export default function CaseDetail() {
 
   const { data: c, isLoading } = useQuery(['case', id], () => caseApi.get(id!));
   const { data: comments = [] } = useQuery(['case-comments', id], () => caseApi.getComments(id!));
+  const { data: attachments = [] } = useQuery(['case-attachments', id], () => attachmentApi.list('case', id!), { enabled: !!id });
+  const uploadMut = useMutation((file: File) => attachmentApi.upload('case', id!, file), {
+    onSuccess: () => qc.invalidateQueries(['case-attachments', id]),
+  });
   const { data: taxonomy = [] } = useQuery('rca-taxonomy', () => rcaApi.taxonomy(), { staleTime: 300_000 });
   // RCA assist (offline, trigram k-NN) — load similar cases when on the RCA tab.
   const { data: rcaSimilar = [] } = useQuery(['rca-similar', id], () => caseApi.rcaSimilar(id!), { enabled: !!id && tab === 1, staleTime: 60_000 });
@@ -946,6 +950,7 @@ export default function CaseDetail() {
               <Tabs value={tab} onChange={(_, v) => setTab(v)}>
                 <Tab label={`Work Notes (${comments.length})`} />
                 <Tab label="Root Cause Analysis" />
+                <Tab label={`Attachments (${attachments.length})`} />
               </Tabs>
             </Box>
 
@@ -1062,6 +1067,33 @@ export default function CaseDetail() {
                   )}
                 </Grid>
                 <RcaPanel caseId={id!} />
+              </CardContent>
+            </TabPanel>
+
+            {/* Attachments tab */}
+            <TabPanel value={tab} index={2}>
+              <CardContent>
+                <Button component="label" size="small" variant="outlined" disabled={uploadMut.isLoading} sx={{ mb: 2 }}>
+                  {uploadMut.isLoading ? 'Uploading…' : 'Upload file'}
+                  <input type="file" hidden onChange={e => { const f = e.target.files?.[0]; if (f) uploadMut.mutate(f); }} />
+                </Button>
+                {attachments.length === 0 && <Typography variant="body2" color="text.secondary">No attachments yet.</Typography>}
+                {(attachments as any[]).map(a => (
+                  <Box key={a.id} display="flex" justifyContent="space-between" alignItems="center" py={1} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Box>
+                      <Typography variant="body2">{a.filename}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {a.uploader_name || 'Unknown'} · {format(new Date(a.created_at), 'dd MMM yyyy HH:mm')}
+                      </Typography>
+                    </Box>
+                    <Button size="small" onClick={async () => {
+                      const { url } = await attachmentApi.getUrl(a.id);
+                      window.open(url, '_blank');
+                    }}>
+                      Download
+                    </Button>
+                  </Box>
+                ))}
               </CardContent>
             </TabPanel>
           </Card>
