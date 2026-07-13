@@ -27,7 +27,7 @@ import NotificationTemplates from './pages/admin/NotificationTemplates';
 import DataHub from './pages/admin/DataHub';
 import SlaPolicies from './pages/admin/SlaPolicies';
 import OpsDashboard from './pages/dashboard/OpsDashboard';
-import { HomePage, ApplicationsPage, DashboardsPage, AdministrationPage } from './pages/launcher/Launcher';
+import { HomePage, DashboardsPage } from './pages/launcher/Launcher';
 import MdmPage from './pages/mdm/MdmPage';
 import RcaPage from './pages/rca/RcaPage';
 import ServiceCatalog from './pages/catalog/ServiceCatalog';
@@ -63,9 +63,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<HomePage />} />
-          <Route path="/apps" element={<ApplicationsPage />} />
           <Route path="/dashboards" element={<DashboardsPage />} />
-          <Route path="/admin" element={<AdministrationPage />} />
           <Route path="/workplace" element={<Workplace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/operations" element={<OpsDashboard />} />
@@ -91,12 +89,13 @@ export default function App() {
           <Route path="/approvals/policies" element={<ApprovalPolicies />} />
           <Route path="/approvals/instances" element={<ApprovalInstances />} />
           <Route path="/org" element={<OrgStructure />} />
+          <Route path="/mdm" element={<MdmPage />} />
           <Route path="/audit" element={<AuditLog />} />
+          <Route path="/admin/sla" element={<SlaPolicies />} />
           <Route path="/admin/connectors" element={<ConnectorAdmin />} />
           <Route path="/admin/notification-templates" element={<NotificationTemplates />} />
+          <Route path="/admin" element={<Navigate to="/org" replace />} />
           <Route path="/admin/datahub" element={<DataHub />} />
-          <Route path="/admin/sla" element={<SlaPolicies />} />
-          <Route path="/mdm" element={<MdmPage />} />
           <Route path="/rca" element={<RcaPage />} />
           <Route path="/contractors/companies" element={<ExternalCompanyRegistry />} />
           <Route path="/contractors/users" element={<ExternalUserManager />} />
