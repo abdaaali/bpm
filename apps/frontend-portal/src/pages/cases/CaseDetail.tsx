@@ -210,7 +210,9 @@ export default function CaseDetail() {
     // every keystroke while searching — that caused the assignee field to flicker.
     { enabled: reassignOpen, keepPreviousData: true },
   );
-  const orgUnits: any[] = orgData?.data || [];
+  // Only leaf "team" org units are valid reassignment targets — see the same
+  // comment in CreateCase.tsx.
+  const orgUnits: any[] = (orgData?.data || []).filter((ou: any) => ou.type === 'team');
   const userOptions: any[] = usersData?.data || [];
 
   // Load linked process instance if present

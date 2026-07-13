@@ -119,7 +119,11 @@ export default function CreateCase() {
     'org-units-create', () => orgApi.getOrgUnits(1, 200),
     { enabled: !!selectedType },
   );
-  const orgUnits: any[] = orgData?.data || [];
+  // Only leaf "team" org units are valid assignment targets — Team Queue
+  // matching is an exact org_unit_id match (case.service.ts getMyWork), so
+  // assigning to a division/department/section orphans the case: nobody's
+  // queue would ever match it.
+  const orgUnits: any[] = (orgData?.data || []).filter((ou: any) => ou.type === 'team');
 
   const { data: usersData } = useQuery(
     ['users-assignee-create', assigneeSearch],
