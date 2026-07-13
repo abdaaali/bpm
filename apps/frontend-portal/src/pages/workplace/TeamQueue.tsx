@@ -20,9 +20,13 @@ export default function TeamQueue() {
 
   const claim = useMutation(
     async (c: any) => {
-      // Keep the case on its team while assigning it to me (the server resolves
-      // my id from the sub). Otherwise the claim would clear the team context.
-      await caseApi.assign(c.id, { assigneeId: user?.id, teamId: c.assigned_team_id || undefined });
+      // POST /cases/:id/claim is the purpose-built endpoint: it verifies the
+      // caller is actually a member of the case's team (see case.service.ts
+      // claimCase()) — the generic assign() endpoint used here previously had
+      // no such check and required a permission (cases:assign) that
+      // field_engineer/security/logistics don't hold, so this button 403'd
+      // for exactly the roles who should be using it.
+      await caseApi.claim(c.id);
       if (c.status === 'new') await caseApi.transition(c.id, { status: 'open' });
     },
     {

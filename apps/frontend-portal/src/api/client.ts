@@ -102,6 +102,7 @@ export const caseApi = {
   update:        (id: string, dto: any)   => axios.put(`${BASE}/cases/${id}`, dto, { headers: headers() }).then(r => r.data),
   transition:    (id: string, dto: any)   => axios.patch(`${BASE}/cases/${id}/transition`, dto, { headers: headers() }).then(r => r.data),
   assign:        (id: string, dto: any)   => axios.patch(`${BASE}/cases/${id}/assign`, dto, { headers: headers() }).then(r => r.data),
+  claim:         (id: string)             => axios.post(`${BASE}/cases/${id}/claim`, {}, { headers: headers() }).then(r => r.data),
   getComments:   (id: string, internal = true) => axios.get(`${BASE}/cases/${id}/comments`, { params: { internal: internal ? 'true' : undefined }, headers: headers() }).then(r => r.data),
   addComment:    (id: string, dto: any)   => axios.post(`${BASE}/cases/${id}/comments`, dto, { headers: headers() }).then(r => r.data),
   stats:         ()                       => axios.get(`${BASE}/cases/stats`, { headers: headers() }).then(r => r.data),
