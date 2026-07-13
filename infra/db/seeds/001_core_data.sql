@@ -33,12 +33,18 @@ INSERT INTO positions (id, tenant_id, org_unit_id, name, level, is_manager, acti
 
 -- ─── Roles ────────────────────────────────────────────────────────────────
 INSERT INTO roles (id, tenant_id, name, key, permissions, system_role) VALUES
-  ('d0000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','Administrator',    'admin',              '["*"]',                          true),
-  ('d0000000-0000-0000-0000-000000000002','a0000000-0000-0000-0000-000000000001','Requester',        'requester',          '["cases:create","tasks:view"]',  false),
-  ('d0000000-0000-0000-0000-000000000003','a0000000-0000-0000-0000-000000000001','Manager',          'manager',            '["cases:*","tasks:*","approvals:approve"]', false),
-  ('d0000000-0000-0000-0000-000000000004','a0000000-0000-0000-0000-000000000001','Finance Controller','finance_controller', '["approvals:approve","cases:view","reports:*"]', false),
-  ('d0000000-0000-0000-0000-000000000005','a0000000-0000-0000-0000-000000000001','CAB Member',       'cab_member',         '["approvals:approve","cases:view"]', false),
-  ('d0000000-0000-0000-0000-000000000006','a0000000-0000-0000-0000-000000000001','IT Engineer',      'it_engineer',        '["tasks:*","cases:view","cases:update"]', false);
+  ('d0000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','Administrator',     'admin',              '["*"]', true),
+  ('d0000000-0000-0000-0000-000000000002','a0000000-0000-0000-0000-000000000001','Requester',         'requester',          '["cases:read","cases:create","tasks:read","processes:read"]', false),
+  ('d0000000-0000-0000-0000-000000000003','a0000000-0000-0000-0000-000000000001','Manager',           'manager',            '["cases:read","cases:create","cases:update","cases:assign","cases:resolve","cases:close","cases:link","cases:workorder","tasks:*","approvals:*","processes:read","rca:*","mdm:read","mdm:write","contractors:read","contractors:dispatch","contractors:manage","org:read","audit:read","notifications:manage","analytics:read"]', false),
+  ('d0000000-0000-0000-0000-000000000004','a0000000-0000-0000-0000-000000000001','Finance Controller','finance_controller', '["cases:read","approvals:read","approvals:decide","tasks:read","processes:read"]', false),
+  ('d0000000-0000-0000-0000-000000000005','a0000000-0000-0000-0000-000000000001','CAB Member',        'cab_member',         '["cases:read","approvals:read","approvals:decide","tasks:read","processes:read"]', false),
+  ('d0000000-0000-0000-0000-000000000006','a0000000-0000-0000-0000-000000000001','IT Engineer',       'it_engineer',        '["cases:read","cases:update","cases:workorder","tasks:read","tasks:claim","tasks:complete","processes:read","mdm:read"]', false),
+  ('d0000000-0000-0000-0000-000000000007','a0000000-0000-0000-0000-000000000001','NOC Operator',      'noc',                '["cases:read","cases:create","cases:update","cases:assign","cases:resolve","cases:link","cases:workorder","tasks:*","processes:read","rca:read","mdm:read","analytics:read"]', false),
+  ('d0000000-0000-0000-0000-000000000008','a0000000-0000-0000-0000-000000000001','Field Engineer',    'field_engineer',     '["cases:read","cases:update","cases:workorder","tasks:read","tasks:claim","tasks:complete","processes:read","mdm:read"]', false),
+  ('d0000000-0000-0000-0000-000000000009','a0000000-0000-0000-0000-000000000001','Security Operations','security',          '["cases:read","cases:create","cases:update","cases:resolve","cases:close","cases:link","tasks:*","processes:read","rca:*","analytics:read"]', false),
+  ('d0000000-0000-0000-0000-000000000010','a0000000-0000-0000-0000-000000000001','Logistics',         'logistics',          '["cases:read","cases:create","cases:update","cases:workorder","cases:link","tasks:*","processes:read","contractors:read","contractors:dispatch","mdm:read"]', false),
+  ('d0000000-0000-0000-0000-000000000011','a0000000-0000-0000-0000-000000000001','Approver',          'approver',           '["cases:read","approvals:read","approvals:decide","tasks:read","processes:read"]', false),
+  ('d0000000-0000-0000-0000-000000000012','a0000000-0000-0000-0000-000000000001','Process Designer',  'process_designer',   '["processes:*","cases:read","analytics:read"]', false);
 
 -- ─── Users ────────────────────────────────────────────────────────────────
 -- Platform admin only (reference). Demo users live in seeds-demo/ and load only

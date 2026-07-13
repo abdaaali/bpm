@@ -33,16 +33,6 @@ def kc(method, path, tok, body=None):
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode()[:120]
 
-# ── role → permissions (mirrors the gateway RBAC matrix; DB copy for completeness) ──
-ROLE_PERMS = {
-  "noc": ["cases:read","cases:create","cases:update","cases:assign","cases:resolve","cases:link","cases:workorder","tasks:*","rca:read","mdm:read","analytics:read"],
-  "field_engineer": ["cases:read","cases:update","cases:workorder","tasks:read","tasks:claim","tasks:complete","mdm:read"],
-  "security": ["cases:read","cases:create","cases:update","cases:resolve","cases:close","cases:link","tasks:*","rca:*","analytics:read"],
-  "logistics": ["cases:read","cases:create","cases:update","cases:workorder","cases:link","contractors:read","contractors:dispatch","mdm:read"],
-  "approver": ["cases:read","approvals:read","approvals:decide","tasks:read"],
-  "process_designer": ["processes:*","cases:read","analytics:read"],
-}
-
 # ── teams (org_units, type=team) under a division ──
 DIVISION = ("NETOPS", "Network Operations")
 TEAMS = [("NOC","Network Operations Center"), ("FIELD","Field Operations"),
@@ -68,12 +58,14 @@ EXISTING_ROLES = {"engineer1":["field_engineer"], "manager1":["manager"], "cab1"
 
 def main():
     tok = kc_token()
-    print("== roles (DB) ==")
-    for key, perms in ROLE_PERMS.items():
-        sql(f"INSERT INTO roles(tenant_id,name,key,permissions) VALUES('{TENANT}','{key.replace('_',' ').title()}','{key}','{json.dumps(perms)}'::jsonb) ON CONFLICT DO NOTHING;")
-        # ensure the realm role exists in Keycloak too
+    print("== roles (Keycloak realm roles) ==")
+    # DB `roles` rows now come from the core seed (infra/db/seeds/001_core_data.sql),
+    # which is the single source of truth for the permission matrix — no longer
+    # duplicated here. This just ensures the matching Keycloak realm roles exist
+    # for the users this script creates below.
+    for key in ["noc", "field_engineer", "security", "logistics", "approver", "process_designer"]:
         kc("POST","/admin/realms/bpm/roles",tok,{"name":key})
-    print("  ensured:", ", ".join(ROLE_PERMS))
+    print("  ensured realm roles for:", "noc, field_engineer, security, logistics, approver, process_designer")
 
     print("== teams (org_units) ==")
     sql(f"INSERT INTO org_units(tenant_id,code,name,type) VALUES('{TENANT}','{DIVISION[0]}','{DIVISION[1]}','division') ON CONFLICT DO NOTHING;")
