@@ -194,7 +194,7 @@ INSERT INTO process_definitions (id, tenant_id, slug, name, description, categor
       <extensionElements>
         <!-- id renamed from "decision" (reserved — the engine always injects its
              own `decision`/`approved` variables after this formKey="approval"
-             task resolves, see process-instance.service.ts processCompleteApproval).
+             task resolves, see process-instance.service.ts approvalResult()).
              The gateway conditions below intentionally still read the
              engine-injected `decision`, NOT this field — do not rename them. -->
         <camunda:formProperty id="approval_decision" name="Decision" type="enum" required="true">
