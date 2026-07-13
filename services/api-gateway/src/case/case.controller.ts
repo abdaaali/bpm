@@ -9,7 +9,12 @@ import { ProxyService } from '../proxy/proxy.service';
 const CASE_URL = () => process.env.CASE_SERVICE_URL || 'http://case-service:3004';
 
 function hdrs(req: any) {
-  return { Authorization: req.headers['authorization'] || '', 'X-Tenant-ID': req.tenantId || '', 'X-User-ID': req.user?.sub || '' };
+  return {
+    Authorization: req.headers['authorization'] || '',
+    'X-Tenant-ID': req.tenantId || '',
+    'X-User-ID': req.user?.sub || '',
+    'X-User-Roles': (req.user?.roles || []).join(','),
+  };
 }
 
 @ApiTags('Cases')

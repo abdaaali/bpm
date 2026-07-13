@@ -7,6 +7,7 @@ export class CaseController {
 
   private tenant(h: Record<string, string>) { return h['x-tenant-id'] || 'a0000000-0000-0000-0000-000000000001'; }
   private actor(h: Record<string, string>) { return h['x-user-id']; }
+  private roles(h: Record<string, string>) { return (h['x-user-roles'] || '').split(',').filter(Boolean); }
 
   @Get('stats')
   stats(@Headers() h: Record<string, string>) {
