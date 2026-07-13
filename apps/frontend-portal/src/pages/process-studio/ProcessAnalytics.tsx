@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import {
   Box, Typography, Grid, Card, CardContent, CircularProgress, Alert,
@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { analyticsApi } from '../../api/client';
 import KPIStatCard from '../../components/KPIStatCard';
+import BackButton from '../../components/BackButton';
 
 const STATUS_COLORS = ['#1976d2', '#2e7d32', '#ed6c02', '#d32f2f'];
 const PALETTE       = ['#1976d2', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1', '#d32f2f'];
@@ -26,6 +27,8 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export default function ProcessAnalytics() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const backTo = (location.state as { from?: string } | null)?.from || '/processes';
   const [days, setDays] = useState(30);
 
   const { data: summary, isLoading: loadingSum, error: errSum } = useQuery(
@@ -54,6 +57,7 @@ export default function ProcessAnalytics() {
 
   return (
     <Box>
+      <BackButton to={backTo} label={backTo === '/dashboards' ? 'Back to Dashboards' : 'Back to Process Studio'} sx={{ mb: 1 }} />
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Process Analytics</Typography>
       </Box>

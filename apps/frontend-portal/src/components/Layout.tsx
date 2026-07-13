@@ -293,8 +293,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       <List component="div" disablePadding dense>
                         {children.map(c => {
                           const childActive = isChildActive(c);
+                          // Process Performance is reachable from both the Dashboards and
+                          // Process Studio dropdowns — carry where we came from so its own
+                          // back button (ProcessAnalytics.tsx) can return here, not a fixed route.
+                          const to = (item.label === 'Dashboards' && c.path === '/processes/analytics')
+                            ? { pathname: c.path, state: { from: '/dashboards' } }
+                            : c.path;
                           return (
-                            <ListItemButton key={c.path} component={RouterLink} to={c.path} selected={childActive}
+                            <ListItemButton key={c.path} component={RouterLink} to={to} selected={childActive}
                               sx={{
                                 pl: 6.5, py: 0.75, borderRadius: 2, mx: 1, my: 0.15,
                                 '&.Mui-selected': { bgcolor: 'rgba(40,86,201,0.08)', color: 'primary.main' },
