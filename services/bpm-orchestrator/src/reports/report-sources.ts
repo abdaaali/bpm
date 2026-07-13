@@ -52,6 +52,10 @@ export const REPORT_SOURCES: Record<string, ReportSource> = {
       { key: 'urgency',     label: 'Urgency',       expr: 'c.urgency',     type: 'string' },
       { key: 'category',    label: 'Category',      expr: 'c.category',    type: 'string' },
       { key: 'subcategory', label: 'Subcategory',   expr: 'c.subcategory', type: 'string' },
+      { key: 'root_cause_category',    label: 'Root Cause Category',    expr: 'c.root_cause_category',    type: 'string' },
+      { key: 'root_cause_subcategory', label: 'Root Cause Subcategory', expr: 'c.root_cause_subcategory', type: 'string' },
+      { key: 'root_cause_description', label: 'Root Cause Description', expr: 'c.root_cause_description', type: 'string' },
+      { key: 'is_recurring',           label: 'Recurring',              expr: 'c.is_recurring',           type: 'bool' },
       { key: 'change_type', label: 'Change Type',   expr: 'c.change_type', type: 'string' },
       { key: 'risk_level',  label: 'Risk Level',    expr: 'c.risk_level',  type: 'string' },
       { key: 'requester',   label: 'Requester',     expr: fullName('ru'),  type: 'string' },
@@ -114,6 +118,55 @@ export const REPORT_SOURCES: Record<string, ReportSource> = {
       { key: 'claimed_at',   label: 'Claimed At',    expr: 't.claimed_at',   type: 'date' },
       { key: 'completed_at', label: 'Completed At',  expr: 't.completed_at', type: 'date' },
       { key: 'created_at',   label: 'Created At',     expr: 't.created_at',   type: 'date' },
+    ],
+  },
+
+  rca: {
+    key: 'rca',
+    label: 'Root Cause Analysis',
+    alias: 'r',
+    from: `rca_records r
+      JOIN cases c        ON c.id = r.case_id
+      LEFT JOIN users cb  ON cb.id = r.created_by
+      LEFT JOIN users rb  ON rb.id = r.reviewed_by`,
+    defaultOrder: 'r.created_at DESC',
+    defaultColumns: ['case_number', 'case_type', 'method', 'root_cause_statement', 'status', 'created_at'],
+    columns: [
+      { key: 'case_number',          label: 'Case #',                expr: 'c.case_number',          type: 'string' },
+      { key: 'case_type',            label: 'Case Type',             expr: 'c.type',                 type: 'string' },
+      { key: 'method',               label: 'Method',                expr: 'r.method',               type: 'string' },
+      { key: 'summary',              label: 'Summary',                expr: 'r.summary',              type: 'string' },
+      { key: 'root_cause_statement', label: 'Root Cause Statement',   expr: 'r.root_cause_statement', type: 'string' },
+      { key: 'status',               label: 'Status',                 expr: 'r.status',               type: 'string' },
+      { key: 'created_by',           label: 'Created By',             expr: fullName('cb'),           type: 'string' },
+      { key: 'reviewed_by',          label: 'Reviewed By',            expr: fullName('rb'),           type: 'string' },
+      { key: 'created_at',           label: 'Created At',             expr: 'r.created_at',           type: 'date' },
+      { key: 'updated_at',           label: 'Updated At',             expr: 'r.updated_at',           type: 'date' },
+    ],
+  },
+
+  capa: {
+    key: 'capa',
+    label: 'CAPA Actions',
+    alias: 'a',
+    from: `capa_actions a
+      JOIN cases c        ON c.id = a.case_id
+      LEFT JOIN users ow  ON ow.id = a.owner_id
+      LEFT JOIN users vb  ON vb.id = a.verified_by`,
+    defaultOrder: 'a.created_at DESC',
+    defaultColumns: ['case_number', 'action_type', 'description', 'owner', 'status', 'due_at'],
+    columns: [
+      { key: 'case_number',         label: 'Case #',              expr: 'c.case_number',        type: 'string' },
+      { key: 'case_type',           label: 'Case Type',           expr: 'c.type',                type: 'string' },
+      { key: 'action_type',         label: 'Action Type',         expr: 'a.action_type',         type: 'string' },
+      { key: 'description',         label: 'Description',         expr: 'a.description',         type: 'string' },
+      { key: 'owner',               label: 'Owner',                expr: fullName('ow'),          type: 'string' },
+      { key: 'status',              label: 'Status',               expr: 'a.status',              type: 'string' },
+      { key: 'due_at',              label: 'Due At',               expr: 'a.due_at',              type: 'date' },
+      { key: 'effectiveness',       label: 'Effectiveness',        expr: 'a.effectiveness',       type: 'string' },
+      { key: 'effectiveness_notes', label: 'Effectiveness Notes',  expr: 'a.effectiveness_notes', type: 'string' },
+      { key: 'verified_by',         label: 'Verified By',          expr: fullName('vb'),          type: 'string' },
+      { key: 'created_at',          label: 'Created At',           expr: 'a.created_at',          type: 'date' },
     ],
   },
 };
