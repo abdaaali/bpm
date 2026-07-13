@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, Grid, Card, CardActionArea, Avatar, Button } from '@mui/material';
+import { Box, Typography, Grid, Card, CardActionArea, Avatar, Button, ButtonBase } from '@mui/material';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import StoreIcon from '@mui/icons-material/Store';
 import ListAltIcon from '@mui/icons-material/ListAlt';
@@ -104,19 +104,19 @@ function WorkplaceSummary() {
       <Box sx={{ p: 2.5 }}>
         <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
           <Typography variant="h6" fontWeight={700}>My Workplace</Typography>
-          <Box display="flex" alignItems="center" gap={0.5} color="primary.main" sx={{ cursor: 'pointer' }} onClick={() => navigate('/workplace')}>
+          <ButtonBase onClick={() => navigate('/workplace')} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'primary.main', borderRadius: 1, px: 0.5 }}>
             <Typography variant="body2" fontWeight={600}>Go to My Workplace</Typography>
             <ChevronRightIcon fontSize="small" />
-          </Box>
+          </ButtonBase>
         </Box>
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={4} sx={{ cursor: 'pointer' }} onClick={() => navigate('/workplace?tab=todo')}>
+          <Grid item xs={12} sm={4} component={ButtonBase} onClick={() => navigate('/workplace?tab=todo')} sx={{ textAlign: 'inherit', borderRadius: 1 }}>
             <KPIStatCard label="To Do" value={toDoCount} color="#2856c9" />
           </Grid>
-          <Grid item xs={12} sm={4} sx={{ cursor: 'pointer' }} onClick={() => navigate('/workplace?tab=requests')}>
+          <Grid item xs={12} sm={4} component={ButtonBase} onClick={() => navigate('/workplace?tab=requests')} sx={{ textAlign: 'inherit', borderRadius: 1 }}>
             <KPIStatCard label="My Requests" value={myRequestsData?.total ?? 0} color="#1b7a4a" />
           </Grid>
-          <Grid item xs={12} sm={4} sx={{ cursor: 'pointer' }} onClick={() => navigate('/workplace?tab=team')}>
+          <Grid item xs={12} sm={4} component={ButtonBase} onClick={() => navigate('/workplace?tab=team')} sx={{ textAlign: 'inherit', borderRadius: 1 }}>
             <KPIStatCard label="Team Queue" value={teamCases.length} color="#b5760f" />
           </Grid>
         </Grid>
