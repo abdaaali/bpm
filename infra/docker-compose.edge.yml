@@ -1,30 +1,60 @@
-# TLS edge overlay — puts an nginx reverse proxy in front of the frontend and
-# gateway and makes it the SOLE host-published entry point.
+# TLS edge overlay — puts an nginx reverse proxy in front of the frontend,
+# api-gateway, Keycloak, and the ops tools (Grafana/Prometheus/Kafka UI/MinIO)
+# at one TLS origin. contractor-frontend and mobile-pwa are NOT behind this
+# proxy — they keep their own direct host ports (see docker-compose.yml).
+# Every service edge fronts also keeps its own direct BIND_ADDR-gated port for
+# local dev without edge; set BIND_ADDR=127.0.0.1 in infra/.env in production
+# so edge becomes the only externally-reachable path to them.
 #
-# Prereq: ./edge/gen-cert.sh   (or drop a real cert at edge/certs/edge.{crt,key})
+# Prereq: ./edge/gen-cert.sh          (or drop a real cert at edge/certs/edge.{crt,key})
+#         ./edge/gen-htpasswd.sh      (generates infra-auth.htpasswd for Prometheus/Kafka UI)
 # Run (prod):
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.edge.yml up -d
 # Run (local TLS test):
 #   docker compose -f docker-compose.yml -f docker-compose.edge.yml up -d edge
+#
+# Port is configurable via EDGE_HTTP_PORT / EDGE_HTTPS_PORT in infra/.env
+# (defaults 80/443). e.g. this deployment sets EDGE_HTTPS_PORT=8093.
 
 services:
   edge:
     image: nginx:1.27-alpine
     container_name: bpm-edge
     restart: always
-    depends_on: [frontend, api-gateway]
+    depends_on: [frontend, api-gateway, keycloak]
     ports:
-      - "80:80"
-      - "443:443"
+      - "${EDGE_HTTP_PORT:-80}:80"
+      - "${EDGE_HTTPS_PORT:-443}:443"
     volumes:
       - ./edge/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./edge/certs:/etc/nginx/certs:ro
+      # Basic-auth credentials for /prometheus/ and /kafka-ui/ (Grafana/MinIO
+      # keep their own separate login). Generate with ./edge/gen-htpasswd.sh —
+      # gitignored, never commit it.
+      - ./edge/infra-auth.htpasswd:/etc/nginx/infra-auth.htpasswd:ro
     networks: [bpm-net]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "--no-check-certificate", "https://127.0.0.1/healthz"]
       interval: 30s
       timeout: 5s
       retries: 3
+
+  # Serving Prometheus/Grafana correctly under an edge subpath needs each tool
+  # told its own external URL — kept as an edge-only override (not the base
+  # compose file) so plain `docker compose up` (no edge) keeps serving both at
+  # their own root path on the direct port, unaffected.
+  prometheus:
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.external-url=${PROMETHEUS_EXTERNAL_URL:-http://localhost/prometheus/}"
+      - "--web.route-prefix=/prometheus"
+
+  grafana:
+    environment:
+      GF_SERVER_ROOT_URL: ${GF_SERVER_ROOT_URL:-http://localhost/grafana/}
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
 
 # In production, set BIND_ADDR=127.0.0.1 in infra/.env so the app + ops ports
 # bind to loopback only (reachable solely by this edge proxy, not externally).

@@ -79,6 +79,12 @@ Services currently trust `x-user-id`/`x-tenant-id` headers; frontend shows every
 
 ## Phase 1 — Environments, CI/CD & infrastructure — ✅ DONE (artifacts; needs host/registry secrets to run)
 
+> **2026-07-14 correction:** `.github/workflows/ci.yml` referenced below was
+> subsequently removed from the repo and was never wired up with registry
+> secrets. There is no CI/CD pipeline today — deploy is manual/SSH
+> (`docker compose … build` directly on the host; see `docs/DEPLOY.md`). The
+> checkboxes below describe a historical design, not current state.
+
 **Goal:** repeatable, auditable delivery; no more manual `docker compose build` on the prod host.
 
 - [x] **Three environments:** dev (`docker-compose.yml`, builds), staging/prod (base + `docker-compose.prod.yml`, pulls images) — separate gitignored `infra/.env` per env. Documented in `docs/DEPLOY.md`.

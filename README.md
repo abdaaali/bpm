@@ -19,6 +19,7 @@ core flows. For the full architecture (every app/service, DB schema, Kafka topic
 ```bash
 cd infra
 cp .env.example .env   # then fill in real values — see comments in the file
+./keycloak/render-realm.sh   # bakes KEYCLOAK_CLIENT_SECRET/KC_FRONTEND_URL into realm-export.json
 docker compose up -d --build
 ```
 
@@ -42,12 +43,28 @@ Once `frontend`, `api-gateway`, and the backend services report `healthy`, open:
 | http://localhost:9090 | Prometheus |
 | http://localhost:3300 | Grafana |
 
-For local dev only, `infra/docker-compose.dev.yml` adds a direct port for `external-api` (3007) so
-the contractor API can be hit without going through the contractor-frontend proxy:
+`bpm-orchestrator` (3003) and `external-api` (3007) are also published directly on the host — the
+former so Playwright's `backend-workflow` project can call orchestrator-only routes that
+`api-gateway` doesn't proxy, the latter so the contractor API can be hit without going through the
+contractor-frontend proxy. Both are gated by `BIND_ADDR` like every other host-published port (see
+Environment Variables below) — set `BIND_ADDR=127.0.0.1` in production to keep them loopback-only.
+
+### Optional: TLS edge proxy
+
+`infra/docker-compose.edge.yml` adds a single nginx TLS proxy in front of the frontend, api-gateway,
+Keycloak, and the ops tools (Grafana/Prometheus/Kafka UI/MinIO console) at one origin — everything
+above stays reachable on its own direct port too, so this is additive, not a replacement:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+cd infra
+./edge/gen-cert.sh                 # self-signed cert for dev/staging
+./edge/gen-htpasswd.sh             # basic-auth creds for /prometheus/ and /kafka-ui/
+docker compose -f docker-compose.yml -f docker-compose.edge.yml up -d
 ```
+
+Host port defaults to 80/443 — override with `EDGE_HTTP_PORT`/`EDGE_HTTPS_PORT` in `.env` (e.g. a
+deployment behind an existing reverse proxy might use `EDGE_HTTPS_PORT=8093`). `contractor-frontend`
+and `mobile-pwa` are intentionally not behind this proxy — they keep their own ports (8081/8082).
 
 ## Demo Users
 

@@ -35,8 +35,8 @@ Golden signal: a login + a `GET /api/v1/cases/stats` succeed end-to-end.
 2. **Triage by layer** (bottom-up): postgres → kafka → keycloak → microservices
    → gateway → edge. A dependency down cascades upward.
 3. **Recent change?** If a deploy just happened → **roll back** (`DEPLOY.md` §Rollback:
-   re-deploy the previous `IMAGE_TAG`). If a migration just ran and is implicated →
-   see §6.
+   `git checkout` the previous good commit and rebuild — manual/SSH deploy,
+   no registry). If a migration just ran and is implicated → see §6.
 4. **Resource exhaustion?** `docker stats --no-stream`; `df -h` (disk full → log
    rotation is on, but check `db_backups`/volumes); `free -m`.
 5. **Restart the smallest failing unit**, not the whole stack:
@@ -112,7 +112,7 @@ docker compose $COMPOSE restart edge
 |---|---|
 | Tail a service | `docker compose $COMPOSE logs -f <service>` |
 | Restart one service | `docker compose $COMPOSE up -d <service>` |
-| Roll back | redeploy previous `IMAGE_TAG` — `DEPLOY.md` §Rollback |
+| Roll back | `git checkout` previous good commit + rebuild — `DEPLOY.md` §Rollback |
 | Apply migrations | `infra/db/migrate.sh up` (ledgered; `status` to inspect) |
 | Backup / restore | `infra/db/backup.sh` · `BACKUP.md` |
 | Rotate secrets | `infra/rotate-secrets.sh` → apply in a window (§5) |
@@ -136,6 +136,15 @@ Set a **calendar reminder before expiry** (or automate renewal).
 2. Review, then in a maintenance window: `mv .env.rotated .env`.
 3. Apply the **stateful** follow-ups the script prints (re-key DB/Keycloak/MinIO —
    `.env` alone is not enough), then `docker compose $COMPOSE up -d`.
+   - **If `KEYCLOAK_CLIENT_SECRET` changed**: `./keycloak/render-realm.sh` only
+     affects a *fresh* import — Keycloak's `--import-realm` skips a realm
+     that already exists, so restarting the container does **not** push the
+     new secret. Update the `bpm-backend` client's secret directly in the
+     Keycloak admin console (Clients → bpm-backend → Credentials → Regenerate,
+     or set it to match the new `.env` value) before restarting backend
+     services, or they'll fail to authenticate against Keycloak.
+   - **If `KC_FRONTEND_URL` changed**: same caveat — update the `bpm-frontend`
+     client's Valid Redirect URIs in the admin console.
 4. Update external senders (Zabbix/Alertmanager/Grafana webhook tokens).
 5. Verify login + a sample API call. Enforce Keycloak password policy.
 

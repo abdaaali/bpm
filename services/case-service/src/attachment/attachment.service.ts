@@ -16,14 +16,31 @@ function reqSecret(name: string, devDefault: string): string {
 export class AttachmentService {
   private readonly logger = new Logger(AttachmentService.name);
   private readonly minio: MinioClient;
+  // Separate client used ONLY for presignedGetObject — its endpoint/port/SSL
+  // become part of the signed URL handed to a real browser, which can't
+  // resolve the Docker-internal `minio` hostname the internal client above
+  // uses for server-to-server upload/bucket ops. Defaults to the internal
+  // values so local dev (no MINIO_PUBLIC_* set) is unaffected; production
+  // sets MINIO_PUBLIC_ENDPOINT/PORT/USE_SSL to the real public domain, which
+  // the edge proxy forwards back to MinIO (see infra/edge/nginx.conf).
+  private readonly minioPublic: MinioClient;
 
   constructor(private readonly db: DatabaseService) {
+    const accessKey = reqSecret('MINIO_ACCESS_KEY', 'minioadmin');
+    const secretKey = reqSecret('MINIO_SECRET_KEY', 'minioadmin');
     this.minio = new MinioClient({
       endPoint: process.env.MINIO_ENDPOINT || 'minio',
       port: parseInt(process.env.MINIO_PORT || '9000'),
       useSSL: process.env.MINIO_USE_SSL === 'true',
-      accessKey: reqSecret('MINIO_ACCESS_KEY', 'minioadmin'),
-      secretKey: reqSecret('MINIO_SECRET_KEY', 'minioadmin'),
+      accessKey,
+      secretKey,
+    });
+    this.minioPublic = new MinioClient({
+      endPoint: process.env.MINIO_PUBLIC_ENDPOINT || process.env.MINIO_ENDPOINT || 'minio',
+      port: parseInt(process.env.MINIO_PUBLIC_PORT || process.env.MINIO_PORT || '9000'),
+      useSSL: (process.env.MINIO_PUBLIC_USE_SSL || process.env.MINIO_USE_SSL) === 'true',
+      accessKey,
+      secretKey,
     });
     this.ensureBucket().catch(e => this.logger.warn(`MinIO init: ${e.message}`));
   }
@@ -45,9 +62,13 @@ export class AttachmentService {
   }
 
   async list(tenantId: string, entityType: string, entityId: string) {
+    // uploaded_by is stored as whatever actor.ts's X-User-ID carries — the
+    // JWT sub (Keycloak id), not the internal users.id — same dual-match
+    // pattern as resolveUserId() elsewhere (case.service.ts etc.).
     const r = await this.db.query(
-      `SELECT a.*, u.display_name as uploader_name FROM attachments a
-       LEFT JOIN users u ON u.id=a.uploaded_by
+      `SELECT a.*, COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), u.username) as uploader_name
+       FROM attachments a
+       LEFT JOIN users u ON (u.id = a.uploaded_by OR u.keycloak_id = a.uploaded_by::text)
        WHERE a.tenant_id=$1 AND a.entity_type=$2 AND a.entity_id=$3
        ORDER BY a.created_at DESC`,
       [tenantId, entityType, entityId],
@@ -59,7 +80,7 @@ export class AttachmentService {
     const r = await this.db.query(`SELECT * FROM attachments WHERE id=$1 AND tenant_id=$2`, [id, tenantId]);
     if (!r.rows.length) throw new NotFoundException('Attachment not found');
     const att = r.rows[0];
-    return this.minio.presignedGetObject(BUCKET, att.storage_path, 3600); // 1-hour URL
+    return this.minioPublic.presignedGetObject(BUCKET, att.storage_path, 3600); // 1-hour URL
   }
 
   async remove(tenantId: string, id: string) {

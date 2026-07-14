@@ -16,6 +16,12 @@ readiness audit is addressed by the steps below — do them in order.
 - Outbound SMTP for notifications/alerts.
 - The repo on the server (`git clone …`), on the release commit.
 
+**Deploy model: manual/SSH.** There is no CI/CD pipeline in this repo — deploy
+by SSHing to the server, `git pull`ing the release commit, and running
+`docker compose … build && … up -d` directly on the host (step 5). There is
+no `REGISTRY`/`IMAGE_TAG` push-and-pull step; ignore any reference to one
+elsewhere in this doc set from before this pipeline was removed.
+
 ---
 
 ## 1. Secrets (blockers: weak/default secrets, committed secret)
@@ -27,25 +33,32 @@ Then edit `.env` and set the deployment-specific values:
 | Var | Value |
 |---|---|
 | `BIND_ADDR` | `127.0.0.1` (loopback — only the edge proxy is public) |
-| `LOAD_DEMO_SEEDS` | `false` (ship a clean DB — **must** stay false) |
+| `APP_ENV` | `production` (loads `seeds-production/`, never the demo `seeds/`/`seeds-demo/` — see step 3a) |
+| `LOAD_DEMO_SEEDS` | `false` (**must** stay false — `init.sh` refuses to start if `true` alongside `APP_ENV=production`) |
 | `CORS_ORIGINS` | `https://DOMAIN` |
 | `ALLOWED_ORIGINS` | `https://DOMAIN` (or the contractor host) |
 | `KC_HOSTNAME` | `DOMAIN` |
 | `KC_FRONTEND_URL` | `https://DOMAIN` |
-| `KEYCLOAK_CLIENT_SECRET` | strong value (replaces the old hardcoded one; substituted into the realm on import) |
-| `VITE_API_URL` / `VITE_KEYCLOAK_URL` | `https://DOMAIN` / `https://DOMAIN/auth` |
+| `KEYCLOAK_CLIENT_SECRET` | strong value (replaces the old hardcoded one) |
+| `MINIO_PUBLIC_ENDPOINT`/`PORT`/`USE_SSL`, `EXTERNAL_MINIO_PUBLIC_*` | `DOMAIN` / `443` / `true` (and the contractor host's equivalents) — **required**, see step 3b |
+| `VITE_API_URL` / `VITE_KEYCLOAK_URL` | `https://DOMAIN` / `https://DOMAIN` (same origin — edge proxies `/realms/` etc to Keycloak) |
 | `SMTP_*`, `ALERTS_EMAIL_TO` | real SMTP creds |
 
 `.env` is gitignored — never commit it. Keep a copy in the client's secret store.
 
+**Do not use `KEYCLOAK_CLIENT_SECRET`/`KC_FRONTEND_URL` from `.env` directly —
+run `./keycloak/render-realm.sh` after setting them (step 3) to bake them into
+`realm-export.json`; Keycloak's own import does not substitute `${VAR}`
+placeholders itself.**
+
 ---
 
 ## 2. Build the frontend for the client domain (blocker: hardcoded localhost)
-The frontend bakes URLs at build time. With `VITE_*` set in `.env` (step 1):
+The frontend bakes URLs at build time. With `VITE_*` set in `.env` (step 1),
+build directly on the server (manual/SSH deploy — no registry):
 ```bash
 docker compose build frontend contractor-frontend mobile-pwa
 ```
-(Or build elsewhere and push to `REGISTRY`; set `REGISTRY`/`IMAGE_TAG` in `.env`.)
 
 ---
 
@@ -56,8 +69,30 @@ once (first deploy only):
 docker compose up -d postgres
 docker exec bpm-postgres psql -U bpm -d bpm_db -c "CREATE DATABASE keycloak OWNER bpm;"
 ```
-The realm imports on first Keycloak start, substituting `KEYCLOAK_CLIENT_SECRET`
-and `KC_FRONTEND_URL` (no more wildcard origins / hardcoded secret — validated).
+
+### 3a. Render the realm import (blocker: `${VAR}` placeholders are not substituted by Keycloak)
+`realm-export.json.template` (committed) contains literal `${KEYCLOAK_CLIENT_SECRET}`
+and `${KC_FRONTEND_URL}` placeholders. Keycloak's own `--import-realm` does
+**not** substitute these — deployed without this step, Keycloak either fails
+to import or imports the literal placeholder string as the real client
+secret, breaking login for everyone. Render the real file first, every time
+either value changes:
+```bash
+./keycloak/render-realm.sh
+```
+This writes `infra/keycloak/realm-export.json` (gitignored — never commit it),
+the exact file already bind-mounted into the Keycloak container. Also remove
+the 5 demo users (`requester1`/`manager1`/`finance1`/`cab1`/`engineer1`) from
+`realm-export.json.template` before a real production import — see
+`docs/production-readiness/07-pre-production-cleanup-runbook.md` §5a.
+
+### 3b. MinIO public endpoint (blocker: presigned download links point at the Docker-internal `minio` hostname)
+Without `MINIO_PUBLIC_ENDPOINT`/`PORT`/`USE_SSL` (and the contractor-portal
+equivalents `EXTERNAL_MINIO_PUBLIC_*`) set in `.env`, attachment download
+links are signed for `minio:9000`, which a real browser can't resolve —
+uploads work, downloads don't. Set these to `DOMAIN`/`443`/`true` (and the
+contractor host's equivalents) — `infra/edge/nginx.conf` and
+`apps/contractor-portal/nginx.conf` already forward the bucket path to MinIO.
 
 ---
 
@@ -80,24 +115,41 @@ docker compose \
   -f docker-compose.edge.yml \
   up -d --build
 ```
-- `prod.yml` → resource limits, log rotation, UTC, **Keycloak prod mode**.
+- `prod.yml` → resource limits, log rotation, UTC, **Keycloak prod mode**,
+  `APP_ENV: production` + the `seeds-production/` mount on postgres.
 - `edge.yml` → TLS reverse proxy (HSTS/CSP/rate-limit).
-- `LOAD_DEMO_SEEDS=false` → `init.sh` loads schema + reference config + the
-  platform admin only; **no demo users/cases/alarms/contractors**.
+- `APP_ENV=production` → `init.sh` loads schema + `infra/db/seeds-production/`
+  only (tenant/org structure/roles/process definitions/notification templates);
+  **never** the demo `seeds/`/`seeds-demo/`. Only takes effect on first boot
+  against an empty Postgres volume.
 
 ---
 
 ## 6. Post-deploy bootstrap
-1. **Admin login**: Keycloak admin console at `https://DOMAIN/auth` (user `admin`,
-   `KEYCLOAK_ADMIN_PASSWORD`). Create real users in realm `bpm`, assign realm
-   roles (`admin`/`manager`/`noc`/`field_engineer`/`security`/`logistics`/
-   `approver`/`requester`). Each app user also needs a row in the `users` table
-   (org module) with a matching `keycloak_id`.
-2. **Org structure**: adjust org units/teams in the Org module to the client's
-   real structure (the seed ships a telecom-ops skeleton: NOC / Field / Security /
-   Logistics / Operation Support).
-3. Reference data (RCA taxonomy, MDM lookups, notification templates, process
-   definitions, approval policies) is already loaded by migrations + core seed.
+1. **Provision real users** (org structure/roles from `seeds-production/` are
+   already loaded by step 5 — this creates the actual people, atomically
+   creating each Keycloak account + linking its real `keycloak_id`, the one
+   mechanism in this codebase that does so correctly):
+   ```bash
+   docker run --rm --network <compose-project>_bpm-net \
+     -v "$(pwd)/db/seeds-production:/seed:ro" \
+     -e ORG_SERVICE_URL=http://org-service:3001 \
+     node:20-alpine node /seed/provision-users.mjs
+   ```
+   Idempotent — safe to re-run; skips anyone already provisioned. Edit
+   `infra/db/seeds-production/provision-users.mjs`'s `PEOPLE` array first for
+   the client's real org chart (see the org-unit/position/role SQL files in
+   the same directory for the IDs it references).
+2. **Admin login**: Keycloak admin console at `https://DOMAIN/realms/bpm/account`
+   or the admin console (user `admin`, `KEYCLOAK_ADMIN_PASSWORD`). Demo users
+   must be absent (removed from `realm-export.json.template` per step 3a, not
+   just unused).
+3. **Org structure**: verify the Org module tree matches the client's real
+   structure (re-parenting, secondary team assignment, and manager
+   designation are all supported in-app under Org > Structure).
+4. Reference data (RCA taxonomy, MDM lookups, notification templates, process
+   definitions, approval policies) is already loaded by migrations +
+   `seeds-production/`.
 
 ---
 
@@ -109,7 +161,10 @@ curl -sk https://DOMAIN/                          # frontend served over TLS
 docker compose ps                                 # all services healthy
 ```
 Confirm: TLS valid (no cert warning), login works, a case can be created/worked,
-and **no demo data is present** (`SELECT count(*) FROM cases;` → 0).
+**no demo data is present** (`SELECT count(*) FROM cases;` → 0), and an
+attachment uploads **and downloads** successfully via a real browser request
+(not `docker exec`) — this specifically exercises the MinIO public-endpoint
+fix in step 3b.
 
 ---
 
@@ -133,7 +188,10 @@ named volumes; a DB restore reverts app + auth state together.
 
 ## Go-live checklist (all must be ✅)
 - [ ] `.env` secrets rotated; no default/`change-me` values; `.env` not committed
-- [ ] `LOAD_DEMO_SEEDS=false`; DB has 0 demo cases/users
+- [ ] `APP_ENV=production`, `LOAD_DEMO_SEEDS=false`; DB has 0 demo cases/users
+- [ ] `./keycloak/render-realm.sh` run after setting `KEYCLOAK_CLIENT_SECRET`/`KC_FRONTEND_URL`; demo users removed from `realm-export.json.template`
+- [ ] `MINIO_PUBLIC_ENDPOINT`/`PORT`/`USE_SSL` + `EXTERNAL_MINIO_PUBLIC_*` set; attachment download verified from a real browser
+- [ ] `provision-users.mjs` run for the client's real org chart; `seeds-production/provision-users.mjs`'s `PEOPLE` array reflects them
 - [ ] `BIND_ADDR=127.0.0.1`; only 80/443 public (verify `ss -tlnp`)
 - [ ] Real TLS cert for `DOMAIN`; HTTP→HTTPS redirect works
 - [ ] `CORS_ORIGINS`/`ALLOWED_ORIGINS` = client domain (cross-origin denied)

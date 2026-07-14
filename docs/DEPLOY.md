@@ -10,18 +10,22 @@
 Each environment has its **own `infra/.env`** (gitignored) — see `infra/.env.example`. Use strong, unique secrets per environment (Phase 0.4).
 
 ## Images & versioning
-- App services carry `image: ${REGISTRY:-bpm}/<svc>:${IMAGE_TAG:-latest}`.
-- CI (`.github/workflows/ci.yml`) builds and pushes each image tagged with the **git SHA** and the **branch/tag name** to the registry.
-- A deploy pins `REGISTRY` + `IMAGE_TAG` (the SHA or `vX.Y.Z`). The host **pulls** images — it does not build.
+- **Deploy model: manual/SSH.** There is no CI/CD pipeline in this repo — no
+  registry, no image push/pull. `image: ${REGISTRY:-bpm}/<svc>:${IMAGE_TAG:-latest}`
+  in the compose files is present only so a registry-based workflow *could*
+  be added later; today it's unused and both vars stay at their local
+  defaults. The host **builds from source** on every deploy.
 
 ## Deploy (staging or prod)
-On the target host (CI does this over SSH; the manual equivalent):
+SSH to the target host:
 ```bash
-cd /opt/bpm/infra
-export REGISTRY=ghcr.io/<owner> IMAGE_TAG=<git-sha-or-vX.Y.Z>
-docker compose pull                                   # 1. fetch the pinned images
-docker compose run --rm db-migrate                    # 2. apply pending DB migrations (ordered, ledgered, idempotent)
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d   # 3. roll out (limits + log rotation + TZ)
+cd /opt/bpm
+git pull origin main                                  # or the release tag/commit
+cd infra
+./keycloak/render-realm.sh                             # only if KEYCLOAK_CLIENT_SECRET/KC_FRONTEND_URL changed (see PROD_DEPLOY.md §3a)
+docker compose run --rm db-migrate                     # 1. apply pending DB migrations (ordered, ledgered, idempotent)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build           # 2. build images from the pulled source
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d           # 3. roll out (limits + log rotation + TZ)
 ```
 Healthchecks gate startup ordering; watch with `docker compose ps` and `docker compose logs -f <svc>`.
 
@@ -33,15 +37,19 @@ Healthchecks gate startup ordering; watch with `docker compose ps` and `docker c
 - Migrations must be **forward-only and idempotent** (use `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`). Never edit a migration that has shipped — add a new one.
 
 ## Rollback
-Images are immutable per tag, so rollback = redeploy the previous tag:
+No registry to re-pull from — rollback means checking out the previous good
+commit and rebuilding:
 ```bash
-export IMAGE_TAG=<previous-good-sha-or-tag>
-docker compose pull && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+git checkout <previous-good-commit-or-tag>
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
-**Caveat:** DB migrations are forward-only. If a release added a backward-incompatible migration, rolling the *images* back is not enough — restore from backup (see `infra/db/BACKUP.md`) or ship a compensating migration. Prefer additive, backward-compatible migrations so image rollback is always safe.
+**Caveat:** DB migrations are forward-only. If a release added a backward-incompatible migration, rolling the *code* back is not enough — restore from backup (see `infra/db/BACKUP.md`) or ship a compensating migration. Prefer additive, backward-compatible migrations so a code rollback is always safe.
 
 ## Pre-deploy checklist
 - [ ] `infra/.env` for this environment has strong secrets + real SMTP + webhook tokens.
+- [ ] `./keycloak/render-realm.sh` run since the last `KEYCLOAK_CLIENT_SECRET`/`KC_FRONTEND_URL` change (Keycloak does not substitute these itself — see `PROD_DEPLOY.md` §3a).
+- [ ] `MINIO_PUBLIC_ENDPOINT`/`PORT`/`USE_SSL` (+ `EXTERNAL_MINIO_PUBLIC_*`) set to the real public domain(s), not left unset — otherwise attachment downloads fail for real users (`PROD_DEPLOY.md` §3b).
 - [ ] Backups verified (`infra/db/BACKUP.md`) and the latest restore-test passed.
 - [ ] TLS/reverse proxy in front of frontend + gateway (Phase 0.6 — deploy-time).
 - [ ] Alert receiver wired (`ALERTS_EMAIL_TO` + SMTP) and Alertmanager reachable.

@@ -18,6 +18,15 @@ x-prod: &prod
 services:
   postgres:
     <<: *prod
+    environment:
+      TZ: UTC
+      # Required for production: loads migrations/ + seeds-production/ only —
+      # never the demo-flavored seeds/ or seeds-demo/ (see infra/db/init.sh).
+      # Only takes effect on first boot against an empty data volume, since
+      # it's applied via docker-entrypoint-initdb.d like the base seed path.
+      APP_ENV: production
+    volumes:
+      - ./db/seeds-production:/docker-entrypoint-initdb.d/seeds-production:ro
     deploy: { resources: { limits: { memory: 1536M, cpus: "1.5" } } }
   kafka:
     <<: *prod

@@ -35,8 +35,12 @@ telecom ops). Pairs with `RUNBOOKS.md`, `DEPLOY.md`, `BACKUP.md`,
 - [ ] **UAT** passed by operators on staging (the launch processes end-to-end).
 - [ ] **Runbooks** reviewed; on-call rota set; monitoring + alert email verified.
 - [ ] **Rollback plan** (below) rehearsed; pre-cutover backup taken.
-- [ ] CI/CD deploy secrets wired (`REGISTRY`, `STAGING_HOST`/`PROD_HOST`,
-      `DEPLOY_SSH_KEY`) and a staging deploy succeeded from the pipeline.
+- [ ] Deploy is manual/SSH (no CI/CD pipeline in this repo) — SSH access to
+      the target host confirmed for whoever runs the cutover, and a staging
+      deploy has succeeded end-to-end via `DEPLOY.md`'s manual steps.
+- [ ] `./keycloak/render-realm.sh` and `MINIO_PUBLIC_*`/`EXTERNAL_MINIO_PUBLIC_*`
+      set (`PROD_DEPLOY.md` §3a/3b) — without these, login or attachment
+      downloads break on real traffic.
 
 ## 4. Cutover runbook (maintenance window)
 Production stack: `COMPOSE="-f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.edge.yml"`
@@ -46,15 +50,15 @@ Production stack: `COMPOSE="-f docker-compose.yml -f docker-compose.prod.yml -f 
 | 1 | Announce window start | Lead | comms sent |
 | 2 | **Backup** current prod DB (`infra/db/backup.sh`) + snapshot volumes | Platform | backup file present + restore-listable |
 | 3 | Put up maintenance notice (or drain traffic at the edge) | Platform | users see notice |
-| 4 | Pull tagged images (`REGISTRY`/`IMAGE_TAG`) — `DEPLOY.md` | Platform | images present, no build on host |
+| 4 | `git pull` the release commit; build images on the host (`DEPLOY.md` — no registry, manual/SSH deploy) | Platform | images built, `docker compose ps` shows the new build |
 | 5 | `infra/db/migrate.sh up` | Platform | `migrate.sh status` all applied; **rollback → step R** |
 | 6 | `docker compose $COMPOSE up -d` | Platform | all containers healthy (`RUNBOOKS.md §0`) |
 | 7 | **Smoke test** (login, create+resolve a case, an approval, a dashboard, a notification) | Ops | all pass; **rollback → step R** |
 | 8 | Cut real traffic (DNS / edge) | Platform | `https://<host>` serves; TLS valid |
 | 9 | Announce **live**; begin hypercare | Lead | comms sent |
 
-**Step R — Rollback** (if step 5/6/7 fails): redeploy the previous `IMAGE_TAG`
-(`DEPLOY.md §Rollback`); if a migration is implicated, **restore the step-2
+**Step R — Rollback** (if step 5/6/7 fails): `git checkout` the previous good
+commit and rebuild (`DEPLOY.md §Rollback`); if a migration is implicated, **restore the step-2
 backup** (`BACKUP.md`), restart, re-verify smoke. Restore maintenance notice and
 communicate. Forward-only migrations mean DB rollback = restore, so the step-2
 backup is the safety net — do not skip it.

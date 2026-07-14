@@ -106,8 +106,12 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks: [bpm-net]
+    # Also reachable at /kafka-ui/ via the edge proxy (basic-auth protected)
+    # when that overlay is used. BIND_ADDR=127.0.0.1 in production locks this
+    # direct port to loopback, same as everything else.
     ports: ["${BIND_ADDR:-0.0.0.0}:8091:8080"]
     environment:
+      SERVER_SERVLET_CONTEXT_PATH: /kafka-ui
       KAFKA_CLUSTERS_0_NAME: bpm-cluster
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     depends_on:
@@ -120,6 +124,9 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks: [bpm-net]
+    # Console (9001) also reachable at /minio/ via the edge proxy when that
+    # overlay is used. BIND_ADDR=127.0.0.1 in production locks these direct
+    # ports to loopback, same as everything else.
     ports:
       - "${BIND_ADDR:-0.0.0.0}:9000:9000"
       - "${BIND_ADDR:-0.0.0.0}:9001:9001"
@@ -156,25 +163,36 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks: [bpm-net]
-    # Bind to loopback in prod (BIND_ADDR=127.0.0.1) — only the TLS edge proxy
-    # should be publicly reachable.
+    # Also reachable at /realms/ /resources/ /admin/ /js/ via the edge proxy
+    # when that overlay is used (same-origin as the frontend at the edge
+    # port). BIND_ADDR=127.0.0.1 in production locks this direct port to
+    # loopback, same as everything else.
     ports: ["${BIND_ADDR:-0.0.0.0}:8443:8080"]
     volumes:
       - keycloak_data:/opt/keycloak/data
+      # Run ./keycloak/render-realm.sh first (any time KEYCLOAK_CLIENT_SECRET
+      # or KC_FRONTEND_URL below changes) to produce this file from
+      # realm-export.json.template — Keycloak's own --import-realm does NOT
+      # substitute ${VAR} placeholders itself, so the committed template is
+      # never mounted directly.
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
       - ./keycloak-themes:/opt/keycloak/themes:ro
     environment:
       KC_DB: dev-file
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      # Substituted into realm-export.json on import (confidential client secret +
-      # the frontend redirect origin — replaces the old hardcoded secret / '*').
+      # Must match the value baked into realm-export.json by render-realm.sh
+      # (confidential client secret + the frontend redirect origin — replaces
+      # the old hardcoded secret / '*'). Re-run render-realm.sh after changing.
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:?KEYCLOAK_CLIENT_SECRET must be set}
+      # Public origin: the direct port (default) for local dev without edge, or
+      # the edge proxy's origin/port (e.g. https://host:8093) when deployed
+      # behind edge — set both KC_FRONTEND_URL and KC_HOSTNAME_PORT to match.
       KC_FRONTEND_URL: ${KC_FRONTEND_URL:-http://localhost:8443}
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
       KC_PROXY: edge
-      KC_HOSTNAME_PORT: "8443"
+      KC_HOSTNAME_PORT: ${KC_HOSTNAME_PORT:-8443}
     command: start-dev --import-realm
     healthcheck:
       test: ["CMD-SHELL", "(echo >/dev/tcp/localhost/8080) 2>/dev/null && exit 0 || exit 1"]
@@ -253,7 +271,12 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks: [bpm-net]
-    # ports: internal-only (via api-gateway)   # 3003 bpm-orchestrator
+    # Normally internal-only (reached via api-gateway). Exposed here so
+    # Playwright's backend-workflow project can call orchestrator-only routes
+    # that api-gateway doesn't proxy (e.g. the approval-service -> orchestrator
+    # approval-result callback), the same way external-api is exposed below.
+    # BIND_ADDR=127.0.0.1 in production locks this to loopback like everything else.
+    ports: ["${BIND_ADDR:-0.0.0.0}:3003:3003"]
     environment:
       <<: *common-env
       PORT: "3003"
@@ -297,6 +320,17 @@ services:
       BPM_ORCHESTRATOR_URL: http://bpm-orchestrator:3003
       # C1 — auto-start the orchestrating process for incident/change/request cases
       CASE_AUTO_PROCESS: "request,change"   # selective: only workflow types auto-start a process; incidents/faults/etc. are plain cases
+      # Public-facing endpoint for presigned attachment DOWNLOAD URLs only —
+      # unlike MINIO_ENDPOINT above (internal `minio` hostname, used for
+      # upload), this becomes part of a URL handed to a real browser (R-22).
+      # Defaults to the internal values (unset here) so local dev is
+      # unaffected. In production, set to the edge proxy's public domain —
+      # e.g. MINIO_PUBLIC_ENDPOINT=bpm.example.com, MINIO_PUBLIC_PORT=443,
+      # MINIO_PUBLIC_USE_SSL=true — which infra/edge/nginx.conf forwards to
+      # MinIO's S3 API port.
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-}
+      MINIO_PUBLIC_PORT: ${MINIO_PUBLIC_PORT:-}
+      MINIO_PUBLIC_USE_SSL: ${MINIO_PUBLIC_USE_SSL:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -442,8 +476,10 @@ services:
       context: ../apps/frontend-portal
       dockerfile: Dockerfile
       args:
-        # Build-time URLs. For production set these to the client's public HTTPS
-        # domain (e.g. https://bpm.client.com and .../auth) before building.
+        # Build-time URLs. Default (no edge): frontend's own direct port +
+        # api-gateway's own direct port. Deployed behind edge instead: point
+        # both at the edge origin (e.g. https://host:8093) — the edge proxy
+        # serves the app, API, and Keycloak same-origin from that one port.
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
         VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-http://localhost:8080}
         VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM:-bpm}
@@ -453,6 +489,8 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks: [bpm-net]
+    # Also reachable at / via the edge proxy when that overlay is used.
+    # BIND_ADDR=127.0.0.1 in production locks this direct port to loopback.
     ports: ["${BIND_ADDR:-0.0.0.0}:8080:80"]
     depends_on:
       api-gateway:
@@ -474,7 +512,11 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks: [bpm-net]
-    # ports: internal-only (via contractor-frontend nginx)   # 3007 external-api
+    # Normally internal-only (via contractor-frontend nginx). Exposed here so
+    # the contractor API can be hit directly for local dev / Playwright without
+    # going through the contractor-frontend proxy. BIND_ADDR=127.0.0.1 in
+    # production locks this to loopback like everything else.
+    ports: ["${BIND_ADDR:-0.0.0.0}:3007:3007"]
     environment:
       <<: *common-env
       PORT: "3007"
@@ -485,6 +527,14 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET: "bpm-attachments"
       CASE_SERVICE_URL: http://case-service:3004
+      # Public-facing endpoint for presigned attachment DOWNLOAD URLs (R-22)
+      # — contractor-portal's own public domain (external-api sits behind
+      # contractor-portal's nginx, not the shared edge proxy), which forwards
+      # the bucket path to MinIO's S3 API — see apps/contractor-portal/nginx.conf.
+      # Defaults to the internal values (unset here) so local dev is unaffected.
+      MINIO_PUBLIC_ENDPOINT: ${EXTERNAL_MINIO_PUBLIC_ENDPOINT:-}
+      MINIO_PUBLIC_PORT: ${EXTERNAL_MINIO_PUBLIC_PORT:-}
+      MINIO_PUBLIC_USE_SSL: ${EXTERNAL_MINIO_PUBLIC_USE_SSL:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -547,6 +597,10 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks: [bpm-net]
+    # Also reachable at /prometheus/ via the edge proxy — see
+    # docker-compose.edge.yml, which layers in --web.route-prefix for that
+    # overlay only (kept out of this base command so the direct port below
+    # keeps serving at root for local dev without edge).
     ports: ["${BIND_ADDR:-0.0.0.0}:9090:9090"]
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -563,6 +617,9 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks: [bpm-net]
+    # Also reachable at /grafana/ via the edge proxy (Grafana's own login,
+    # no basic auth stacked in front) — see docker-compose.edge.yml, which
+    # layers in GF_SERVER_ROOT_URL/SERVE_FROM_SUB_PATH for that overlay only.
     ports: ["${BIND_ADDR:-0.0.0.0}:3300:3000"]
     volumes:
       - grafana_data:/var/lib/grafana

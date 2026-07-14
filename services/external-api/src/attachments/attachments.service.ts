@@ -16,16 +16,35 @@ function reqSecret(name: string, devDefault: string): string {
 export class AttachmentsService {
   private readonly logger = new Logger(AttachmentsService.name);
   private readonly minioClient: Minio.Client;
+  // Separate client used ONLY for presignedGetObject — its endpoint/port/SSL
+  // become part of the signed URL handed to a real browser, which can't
+  // resolve the Docker-internal `minio` hostname minioClient above uses for
+  // server-to-server upload. Defaults to the internal values so local dev
+  // (no MINIO_PUBLIC_* set) is unaffected; production sets
+  // MINIO_PUBLIC_ENDPOINT/PORT/USE_SSL to contractor-portal's own public
+  // domain, which its nginx forwards back to MinIO (see
+  // apps/contractor-portal/nginx.conf) — external-api sits behind
+  // contractor-portal, not the shared edge proxy.
+  private readonly minioPublicClient: Minio.Client;
   private readonly bucket: string;
 
   constructor(private readonly db: DatabaseService) {
     this.bucket = process.env.MINIO_BUCKET || 'bpm-attachments';
+    const accessKey = reqSecret('MINIO_ACCESS_KEY', 'minioadmin');
+    const secretKey = reqSecret('MINIO_SECRET_KEY', 'minioadmin123');
     this.minioClient = new Minio.Client({
       endPoint: process.env.MINIO_ENDPOINT || 'minio',
       port: parseInt(process.env.MINIO_PORT || '9000'),
       useSSL: process.env.MINIO_USE_SSL === 'true',
-      accessKey: reqSecret('MINIO_ACCESS_KEY', 'minioadmin'),
-      secretKey: reqSecret('MINIO_SECRET_KEY', 'minioadmin123'),
+      accessKey,
+      secretKey,
+    });
+    this.minioPublicClient = new Minio.Client({
+      endPoint: process.env.MINIO_PUBLIC_ENDPOINT || process.env.MINIO_ENDPOINT || 'minio',
+      port: parseInt(process.env.MINIO_PUBLIC_PORT || process.env.MINIO_PORT || '9000'),
+      useSSL: (process.env.MINIO_PUBLIC_USE_SSL || process.env.MINIO_USE_SSL) === 'true',
+      accessKey,
+      secretKey,
     });
   }
 
@@ -76,7 +95,7 @@ export class AttachmentsService {
     if (result.rows[0].assigned_company_id !== companyId) throw new ForbiddenException('Access denied');
     if (result.rows[0].visibility_scope === 'internal_only') throw new ForbiddenException('Access denied');
 
-    const url = await this.minioClient.presignedGetObject(this.bucket, result.rows[0].object_key, 3600);
+    const url = await this.minioPublicClient.presignedGetObject(this.bucket, result.rows[0].object_key, 3600);
     return { url, expires_in: 3600 };
   }
 }
