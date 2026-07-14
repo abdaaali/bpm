@@ -351,6 +351,13 @@ export class CaseService {
        dto.auto_rule || null],
     );
     const c = r.rows[0];
+    // Start-form 'file' fields upload to a staging area (entity_type
+    // 'form-field-staging') before the case exists, since there's no case id
+    // yet to attach to — the field's value is the attachment's own id, not the
+    // staging id. Re-home any of those into this case now that it has an id,
+    // otherwise the files stay orphaned under staging and never appear on the
+    // case despite uploading successfully.
+    await this.reassignStagedAttachments(tenantId, dto.context, 'case', c.id);
     await this.audit.log({ tenantId, entityType: 'case', entityId: c.id, action: 'created', actorId, afterState: c });
     await this.kafka.produce('bpm.case.created', { tenantId, caseId: c.id, caseNumber, type: c.type, title: c.title, priority: c.priority, requesterId: c.requester_id });
     // Notify the assignee when a case lands on them at creation (routed or explicit).
@@ -366,6 +373,35 @@ export class CaseService {
     // Rule-driven cross-process auto-links (skipped for rule-generated cases).
     if (!dto.auto_rule) await this.evaluateAutoLinks(tenantId, linked || c, actorId);
     return linked || c;
+  }
+
+  private static readonly UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  // Extracts attachment ids out of a form context's 'file'-field values —
+  // either a plain uuid (single-file) or a JSON array of {id,...} objects
+  // (multi-file, see DynField in startFormHelpers.tsx) — and re-homes any
+  // matching staged attachments onto the real entity now that it exists.
+  private async reassignStagedAttachments(tenantId: string, context: any, entityType: string, entityId: string) {
+    if (!context || typeof context !== 'object') return;
+    const ids = new Set<string>();
+    for (const value of Object.values(context)) {
+      if (typeof value !== 'string' || !value) continue;
+      if (CaseService.UUID_RE.test(value)) { ids.add(value); continue; }
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            if (item?.id && CaseService.UUID_RE.test(item.id)) ids.add(item.id);
+          }
+        }
+      } catch { /* not JSON — not a file field, ignore */ }
+    }
+    if (!ids.size) return;
+    await this.db.query(
+      `UPDATE attachments SET entity_type = $1, entity_id = $2
+       WHERE tenant_id = $3 AND entity_type = 'form-field-staging' AND id = ANY($4::uuid[])`,
+      [entityType, entityId, tenantId, Array.from(ids)],
+    );
   }
 
   /** Child cases (Work Orders / sub-tickets) of a parent ticket. */

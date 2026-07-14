@@ -42,11 +42,6 @@ INSERT INTO digest_config (tenant_id)
 VALUES ('a0000000-0000-0000-0000-000000000001')
 ON CONFLICT (tenant_id) DO NOTHING;
 
--- Sample management recipient for the demo tenant.
-INSERT INTO digest_recipients (tenant_id, email, type)
-VALUES ('a0000000-0000-0000-0000-000000000001', 'a.meissa@sd.zain.com', 'email')
-ON CONFLICT (tenant_id, email) DO NOTHING;
-
 -- Email template used for delivery (raw-HTML passthrough via triple-stache).
 INSERT INTO notification_templates (tenant_id, name, slug, channel, subject, body)
 SELECT 'a0000000-0000-0000-0000-000000000001', 'Weekly Management Digest', 'weekly_management_digest', 'both', '{{subject}}', '{{{bodyHtml}}}'

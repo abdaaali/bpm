@@ -1,7 +1,13 @@
 import { Controller, Get, Post, Delete, Param, Req, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import axios from 'axios';
-import FormData from 'form-data';
+// A namespace import, not a default import: this service's tsconfig has
+// esModuleInterop off, so `import FormData from 'form-data'` compiles to
+// `form_data_1.default` at runtime — which doesn't exist on this package's
+// plain CommonJS export (`module.exports = FormData`) and throws
+// "form_data_1.default is not a constructor" on every upload. `import * as`
+// binds directly to the CJS export instead, which is the constructor itself.
+import * as FormData from 'form-data';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { RequirePermission } from '../auth/require-permission.decorator';

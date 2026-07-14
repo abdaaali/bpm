@@ -7,9 +7,9 @@ RUN npm run build
 
 FROM node:20-alpine
 WORKDIR /app
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
 COPY package*.json ./
+RUN npm install --omit=dev --legacy-peer-deps
+COPY --from=builder /app/dist ./dist
 EXPOSE 3007
 USER node
 CMD ["node", "dist/main.js"]

@@ -20,16 +20,16 @@ function hdrs(req: any) {
 export class DigestController {
   constructor(private readonly proxy: ProxyService) {}
 
-  @Get('overview') @RequirePermission('analytics:read')
+  @Get('overview') @RequirePermission('notifications:manage')
   overview(@Req() req: any) { return this.proxy.forward(ORCH_URL(), 'GET', '/digest/overview', undefined, hdrs(req)); }
 
-  @Get('config') @RequirePermission('analytics:read')
+  @Get('config') @RequirePermission('notifications:manage')
   getConfig(@Req() req: any) { return this.proxy.forward(ORCH_URL(), 'GET', '/digest/config', undefined, hdrs(req)); }
 
   @Put('config') @RequirePermission('notifications:manage')
   updateConfig(@Req() req: any, @Body() b: any) { return this.proxy.forward(ORCH_URL(), 'PUT', '/digest/config', b, hdrs(req)); }
 
-  @Get('recipients') @RequirePermission('analytics:read')
+  @Get('recipients') @RequirePermission('notifications:manage')
   recipients(@Req() req: any) { return this.proxy.forward(ORCH_URL(), 'GET', '/digest/recipients', undefined, hdrs(req)); }
 
   @Post('recipients') @RequirePermission('notifications:manage')
@@ -38,13 +38,13 @@ export class DigestController {
   @Delete('recipients/:id') @RequirePermission('notifications:manage')
   removeRecipient(@Req() req: any, @Param('id') id: string) { return this.proxy.forward(ORCH_URL(), 'DELETE', `/digest/recipients/${id}`, undefined, hdrs(req)); }
 
-  @Get('runs') @RequirePermission('analytics:read')
+  @Get('runs') @RequirePermission('notifications:manage')
   runs(@Req() req: any) { return this.proxy.forward(ORCH_URL(), 'GET', '/digest/runs', undefined, hdrs(req)); }
 
-  @Get('runs/:id') @RequirePermission('analytics:read')
+  @Get('runs/:id') @RequirePermission('notifications:manage')
   run(@Req() req: any, @Param('id') id: string) { return this.proxy.forward(ORCH_URL(), 'GET', `/digest/runs/${id}`, undefined, hdrs(req)); }
 
-  @Post('preview') @RequirePermission('analytics:read')
+  @Post('preview') @RequirePermission('notifications:manage')
   preview(@Req() req: any) { return this.proxy.forward(ORCH_URL(), 'POST', '/digest/preview', {}, hdrs(req)); }
 
   @Post('send') @RequirePermission('notifications:manage')

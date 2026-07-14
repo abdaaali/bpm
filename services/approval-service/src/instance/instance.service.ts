@@ -186,6 +186,170 @@ export class InstanceService {
     return { data, total: parseInt(cnt.rows[0].count, 10), page, pageSize };
   }
 
+  /** Home-card counters scoped to the leader's primary org unit and descendants. */
+  async getLeadershipSummary(userId: string, tenantId: string) {
+    userId = (await this.resolveUserId(userId, tenantId)) as string;
+    const profile = await this.db.query(
+      `SELECT u.id,
+              COALESCE(array_agg(DISTINCT r.key) FILTER (WHERE r.key IS NOT NULL), '{}') AS role_keys,
+              ou.id AS org_unit_id, ou.name AS org_unit_name, ou.type AS org_unit_type,
+              p.name AS position_name
+       FROM users u
+       LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.tenant_id = u.tenant_id
+       LEFT JOIN roles r ON r.id = ur.role_id
+       LEFT JOIN user_org_assignments uoa ON uoa.user_id = u.id AND uoa.tenant_id = u.tenant_id
+         AND uoa.is_primary = true AND (uoa.effective_to IS NULL OR uoa.effective_to >= CURRENT_DATE)
+       LEFT JOIN org_units ou ON ou.id = uoa.org_unit_id
+       LEFT JOIN positions p ON p.id = uoa.position_id
+       WHERE u.id = $1 AND u.tenant_id = $2
+       GROUP BY u.id, ou.id, ou.name, ou.type, p.name`,
+      [userId, tenantId],
+    );
+    const actor = profile.rows[0];
+    if (!actor) throw new ForbiddenException('No organization profile is linked to this account');
+
+    const roleKeys = (actor.role_keys || []).map((r: string) => r.toLowerCase().replace(/[ -]+/g, '_'));
+    const isAdmin = roleKeys.includes('admin');
+    const leadershipRole = roleKeys.some((r: string) => ['manager', 'director', 'team_leader'].includes(r));
+    const leadershipPosition = /(^|\s)(manager|director|team leader)(\s|$)/i.test(actor.position_name || '');
+    if (!isAdmin && !leadershipRole && !leadershipPosition) {
+      throw new ForbiddenException('Leadership summary is limited to admins, directors, managers and team leaders');
+    }
+    if (!isAdmin && !actor.org_unit_id) {
+      throw new ForbiddenException('A primary organization assignment is required for leadership scope');
+    }
+
+    const personal = await this.db.query(
+      `SELECT COUNT(DISTINCT ai.id)::int AS pending,
+              COUNT(DISTINCT ai.id) FILTER (WHERE asd.due_at < NOW())::int AS overdue
+       FROM approval_instances ai
+       JOIN approval_step_decisions asd ON asd.instance_id = ai.id
+       WHERE ai.tenant_id = $1 AND asd.approver_id = $2 AND asd.decision IS NULL
+         AND ai.status IN ('pending','escalated')`,
+      [tenantId, userId],
+    );
+
+    const scopeSql = isAdmin
+      ? `SELECT id FROM users WHERE tenant_id = $1 AND active = true`
+      : `WITH RECURSIVE scoped_units AS (
+           SELECT id FROM org_units WHERE id = $2 AND tenant_id = $1
+           UNION ALL
+           SELECT child.id FROM org_units child JOIN scoped_units parent ON child.parent_id = parent.id
+           WHERE child.tenant_id = $1 AND child.active = true
+         )
+         SELECT DISTINCT uoa.user_id AS id FROM user_org_assignments uoa
+         JOIN scoped_units su ON su.id = uoa.org_unit_id
+         WHERE uoa.tenant_id = $1 AND (uoa.effective_to IS NULL OR uoa.effective_to >= CURRENT_DATE)`;
+    const organization = await this.db.query(
+      `WITH scoped_users AS (${scopeSql})
+       SELECT COUNT(DISTINCT ai.id) FILTER (WHERE ai.status IN ('pending','escalated'))::int AS pending,
+              COUNT(DISTINCT ai.id) FILTER (
+                WHERE ai.status = 'escalated'
+                   OR (ai.status = 'pending' AND asd.decision IS NULL AND asd.due_at < NOW())
+              )::int AS urgent,
+              COUNT(DISTINCT ai.id) FILTER (
+                WHERE ai.status = 'pending' AND asd.decision IS NULL AND asd.due_at < NOW()
+              )::int AS overdue,
+              COUNT(DISTINCT ai.id) FILTER (WHERE ai.status = 'escalated')::int AS escalated
+       FROM approval_instances ai
+       JOIN scoped_users su ON su.id = ai.requester_id
+       LEFT JOIN approval_step_decisions asd ON asd.instance_id = ai.id
+       WHERE ai.tenant_id = $1`,
+      isAdmin ? [tenantId] : [tenantId, actor.org_unit_id],
+    );
+
+    return {
+      awaitingMine: personal.rows[0]?.pending || 0,
+      myOverdue: personal.rows[0]?.overdue || 0,
+      organizationPending: organization.rows[0]?.pending || 0,
+      urgent: organization.rows[0]?.urgent || 0,
+      overdue: organization.rows[0]?.overdue || 0,
+      escalated: organization.rows[0]?.escalated || 0,
+      scope: isAdmin
+        ? { type: 'tenant', name: 'Entire organization' }
+        : { type: actor.org_unit_type, name: actor.org_unit_name },
+    };
+  }
+
+  /** Paginated instance list for the "My Organization Approvals" / "Overdue &
+   * Escalated" Home cards — same leadership + org-tree scoping as
+   * getLeadershipSummary's `organization` counter, but returning rows instead
+   * of just a count, and filterable by `attention=urgent` to match that card. */
+  async findOrganizationScoped(userId: string, tenantId: string, filters: { page?: number; pageSize?: number; attention?: string }) {
+    userId = (await this.resolveUserId(userId, tenantId)) as string;
+    const { page = 1, pageSize = 20, attention } = filters;
+    const { limit, offset } = this.db.paginate(page, pageSize);
+
+    const profile = await this.db.query(
+      `SELECT COALESCE(array_agg(DISTINCT r.key) FILTER (WHERE r.key IS NOT NULL), '{}') AS role_keys,
+              ou.id AS org_unit_id, p.name AS position_name
+       FROM users u
+       LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.tenant_id = u.tenant_id
+       LEFT JOIN roles r ON r.id = ur.role_id
+       LEFT JOIN user_org_assignments uoa ON uoa.user_id = u.id AND uoa.tenant_id = u.tenant_id
+         AND uoa.is_primary = true AND (uoa.effective_to IS NULL OR uoa.effective_to >= CURRENT_DATE)
+       LEFT JOIN org_units ou ON ou.id = uoa.org_unit_id
+       LEFT JOIN positions p ON p.id = uoa.position_id
+       WHERE u.id = $1 AND u.tenant_id = $2
+       GROUP BY ou.id, p.name`,
+      [userId, tenantId],
+    );
+    const actor = profile.rows[0];
+    if (!actor) throw new ForbiddenException('No organization profile is linked to this account');
+    const roleKeys = (actor.role_keys || []).map((r: string) => r.toLowerCase().replace(/[ -]+/g, '_'));
+    const isAdmin = roleKeys.includes('admin');
+    const leadershipRole = roleKeys.some((r: string) => ['manager', 'director', 'team_leader'].includes(r));
+    const leadershipPosition = /(^|\s)(manager|director|team leader)(\s|$)/i.test(actor.position_name || '');
+    if (!isAdmin && !leadershipRole && !leadershipPosition) {
+      throw new ForbiddenException('Organization approvals are limited to admins, directors, managers and team leaders');
+    }
+    if (!isAdmin && !actor.org_unit_id) {
+      throw new ForbiddenException('A primary organization assignment is required for leadership scope');
+    }
+
+    const scopeSql = isAdmin
+      ? `SELECT id FROM users WHERE tenant_id = $1 AND active = true`
+      : `WITH RECURSIVE scoped_units AS (
+           SELECT id FROM org_units WHERE id = $2 AND tenant_id = $1
+           UNION ALL
+           SELECT child.id FROM org_units child JOIN scoped_units parent ON child.parent_id = parent.id
+           WHERE child.tenant_id = $1 AND child.active = true
+         )
+         SELECT DISTINCT uoa.user_id AS id FROM user_org_assignments uoa
+         JOIN scoped_units su ON su.id = uoa.org_unit_id
+         WHERE uoa.tenant_id = $1 AND (uoa.effective_to IS NULL OR uoa.effective_to >= CURRENT_DATE)`;
+    const scopeParams = isAdmin ? [tenantId] : [tenantId, actor.org_unit_id];
+
+    const attentionCond = attention === 'urgent'
+      ? `AND (ai.status = 'escalated' OR (ai.status = 'pending' AND asd.decision IS NULL AND asd.due_at < NOW()))`
+      : `AND ai.status IN ('pending','escalated')`;
+
+    const cnt = await this.db.query(
+      `WITH scoped_users AS (${scopeSql})
+       SELECT COUNT(DISTINCT ai.id) FROM approval_instances ai
+       JOIN scoped_users su ON su.id = ai.requester_id
+       LEFT JOIN approval_step_decisions asd ON asd.instance_id = ai.id
+       WHERE ai.tenant_id = $1 ${attentionCond}`,
+      scopeParams,
+    );
+    const rows = await this.db.query(
+      `WITH scoped_users AS (${scopeSql})
+       SELECT DISTINCT ai.*, c.case_number, c.title AS case_title, c.type AS case_type, c.priority AS case_priority,
+              p.name AS policy_name, TRIM(CONCAT(ru.first_name, ' ', ru.last_name)) AS requester_name
+       FROM approval_instances ai
+       JOIN scoped_users su ON su.id = ai.requester_id
+       LEFT JOIN approval_step_decisions asd ON asd.instance_id = ai.id
+       LEFT JOIN cases c ON ai.entity_type = 'case' AND c.id = ai.entity_id
+       LEFT JOIN approval_policies p ON p.id = ai.policy_id
+       LEFT JOIN users ru ON ru.id = ai.requester_id
+       WHERE ai.tenant_id = $1 ${attentionCond}
+       ORDER BY ai.created_at DESC
+       LIMIT $${scopeParams.length + 1} OFFSET $${scopeParams.length + 2}`,
+      [...scopeParams, limit, offset],
+    );
+    return { data: rows.rows, total: parseInt(cnt.rows[0].count, 10), page, pageSize };
+  }
+
   async approve(instanceId: string, stepDecisionId: string, userId: string, tenantId: string, comment?: string) {
     userId = (await this.resolveUserId(userId, tenantId)) as string;
     const instance = await this.findById(instanceId, tenantId);

@@ -21,6 +21,16 @@ export class InstanceController {
     const uid = req.headers['x-user-id'] || '';
     return this.svc.findPendingForUser(uid, tid, { page: q.page ? +q.page : 1, pageSize: q.pageSize ? +q.pageSize : 20 });
   }
+  @Get('leadership-summary') getLeadershipSummary(@Req() req: any) {
+    const tid = req.headers['x-tenant-id'] || 'a0000000-0000-0000-0000-000000000001';
+    const uid = req.headers['x-user-id'] || '';
+    return this.svc.getLeadershipSummary(uid, tid);
+  }
+  @Get('organization') getOrganizationScoped(@Req() req: any, @Query() q: any) {
+    const tid = req.headers['x-tenant-id'] || 'a0000000-0000-0000-0000-000000000001';
+    const uid = req.headers['x-user-id'] || '';
+    return this.svc.findOrganizationScoped(uid, tid, { page: q.page ? +q.page : 1, pageSize: q.pageSize ? +q.pageSize : 20, attention: q.attention });
+  }
   @Get(':id') findOne(@Req() req: any, @Param('id') id: string) {
     return this.svc.findById(id, req.headers['x-tenant-id'] || 'a0000000-0000-0000-0000-000000000001');
   }
