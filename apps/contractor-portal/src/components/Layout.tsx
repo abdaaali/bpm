@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import {
   Menu as MenuIcon, Dashboard, Assignment, Group, Notifications,
-  Person, Logout, HardwareOutlined, ChevronRight,
+  Person, Logout, ChevronRight,
 } from '@mui/icons-material';
 import { useAuth } from '../auth/AuthContext';
 
@@ -36,12 +36,8 @@ export default function Layout() {
     <Box>
       <Box sx={{ p: 2.25, background: 'linear-gradient(135deg, #e65100 0%, #ac1900 100%)', color: 'white' }}>
         <Box display="flex" alignItems="center" gap={1.25}>
-          <Box sx={{
-            width: 38, height: 38, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.18)',
-            border: '1px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <HardwareOutlined fontSize="small" />
-          </Box>
+          <Box component="img" src="/bpm-logo-official.png" alt="BPM Portal"
+            sx={{ width: 38, height: 38, objectFit: 'contain', flexShrink: 0 }} />
           <Box minWidth={0}>
             <Typography variant="subtitle2" fontWeight={800} noWrap>Contractor Portal</Typography>
             <Typography variant="caption" sx={{ opacity: 0.9 }} noWrap component="div">{user?.company_name}</Typography>
@@ -88,7 +84,8 @@ export default function Layout() {
               <MenuIcon />
             </IconButton>
           )}
-          <HardwareOutlined sx={{ mr: 1 }} />
+          <Box component="img" src="/bpm-logo-official.png" alt="BPM Portal"
+            sx={{ width: { xs: 32, md: 38 }, height: { xs: 32, md: 38 }, mr: 1, objectFit: 'contain', flexShrink: 0 }} />
           <Typography variant="h6" noWrap sx={{ flexGrow: 1, fontWeight: 700 }}>Contractor Portal</Typography>
           <Typography variant="body2" sx={{ mr: 2, opacity: 0.85, display: { xs: 'none', sm: 'block' } }}>
             {user?.company_name}

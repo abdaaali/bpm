@@ -4,7 +4,7 @@ import {
   Box, Card, CardContent, TextField, Button, Typography, Alert,
   CircularProgress, InputAdornment, IconButton,
 } from '@mui/material';
-import { HardwareOutlined, Email, Lock, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Email, Lock, Visibility, VisibilityOff } from '@mui/icons-material';
 import { useAuth } from '../auth/AuthContext';
 
 export default function LoginPage() {
@@ -40,9 +40,8 @@ export default function LoginPage() {
         <CardContent sx={{ p: 4 }}>
           {/* Logo/Header */}
           <Box textAlign="center" mb={4}>
-            <Box sx={{ width: 72, height: 72, borderRadius: '50%', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2 }}>
-              <HardwareOutlined sx={{ fontSize: 36, color: 'white' }} />
-            </Box>
+            <Box component="img" src="/bpm-logo-official.png" alt="BPM Portal"
+              sx={{ width: 72, height: 72, objectFit: 'contain', display: 'block', mx: 'auto', mb: 2 }} />
             <Typography variant="h5" fontWeight="bold" gutterBottom>Contractor Portal</Typography>
             <Typography variant="body2" color="text.secondary">Field Operations & Work Order Management</Typography>
           </Box>

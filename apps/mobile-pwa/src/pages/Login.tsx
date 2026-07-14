@@ -1,16 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, TextField, Button, Alert, IconButton, Avatar, Card } from '@mui/material';
+import { Box, Typography, TextField, Button, Alert, IconButton, Card } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import AccountTreeIcon from '@mui/icons-material/AccountTree';
-import EngineeringIcon from '@mui/icons-material/Engineering';
 import { useAuth } from '../auth';
 import { getConn, MODES } from '../connection';
-
-const MODE_ICON: Record<string, React.ReactNode> = {
-  bpm: <AccountTreeIcon sx={{ fontSize: 30 }} />,
-  contractor: <EngineeringIcon sx={{ fontSize: 30 }} />,
-};
 
 export default function Login() {
   const nav = useNavigate();
@@ -42,9 +35,8 @@ export default function Login() {
           '&:hover': { bgcolor: 'rgba(255,255,255,0.24)' }, '&:active': { transform: 'scale(0.93)' },
         }} onClick={() => nav('/connect')}><ArrowBackIcon /></IconButton>
         <Box sx={{ textAlign: 'center', pb: 1, position: 'relative' }}>
-          <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.35)', width: 68, height: 68, mx: 'auto', mb: 2 }}>
-            {meta ? MODE_ICON[meta.mode] : null}
-          </Avatar>
+          <Box component="img" src="/bpm-logo-official.png" alt="BPM Portal"
+            sx={{ width: 68, height: 68, objectFit: 'contain', display: 'block', mx: 'auto', mb: 2 }} />
           <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: 1.6, opacity: 0.95 }}>{meta?.title}</Typography>
           <Typography variant="h4" fontWeight={800} letterSpacing={-0.5}>Welcome back</Typography>
         </Box>
@@ -67,7 +59,11 @@ export default function Login() {
             {busy ? 'Signing in…' : 'Sign in'}
           </Button>
         </Card>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 3.5, pb: 2 }}>BPM Portal</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 3.5, pb: 2 }}>
+          <Box component="img" src="/bpm-logo-official.png" alt="BPM Portal"
+            sx={{ width: 28, height: 28, objectFit: 'contain' }} />
+          <Typography variant="caption" color="text.secondary">BPM Portal</Typography>
+        </Box>
       </Box>
     </Box>
   );

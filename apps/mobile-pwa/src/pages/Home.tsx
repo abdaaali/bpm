@@ -214,7 +214,11 @@ function AccountTab() {
       <Button fullWidth variant="outlined" size="large" sx={{ mb: 1.5 }} onClick={() => { logout(); clearConn(); nav('/connect'); }}>Switch connection</Button>
       <Button fullWidth color="error" size="large" onClick={() => { logout(); nav('/login'); }}>Sign out</Button>
       <Divider sx={{ my: 3 }} />
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center' }}>BPM Portal · Mobile</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+        <Box component="img" src="/bpm-logo-official.png" alt="BPM Portal"
+          sx={{ width: 28, height: 28, objectFit: 'contain' }} />
+        <Typography variant="caption" color="text.secondary">BPM Portal · Mobile</Typography>
+      </Box>
     </Box>
   );
 }
@@ -317,7 +321,8 @@ export default function Home() {
     <Box sx={{ pb: 10, minHeight: '100dvh', bgcolor: 'background.default' }}>
       <AppBar position="sticky" elevation={0} sx={{ background: meta?.gradient }}>
         <Toolbar sx={{ gap: 1.25, minHeight: 64, py: 1 }}>
-          <Box component="img" src="/icon.svg" alt="" sx={{ width: 30, height: 30, borderRadius: 1 }} />
+          <Box component="img" src="/bpm-logo-official.png" alt="BPM Portal"
+            sx={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0 }} />
           <Typography variant="h6" fontWeight={800} sx={{ fontSize: 19 }}>BPM Field</Typography>
           <Box flex={1} />
           {/* Translucent (not meta.color) so it stays visible against a same-hue AppBar. */}

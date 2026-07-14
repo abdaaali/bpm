@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, Card, CardActionArea, Stack, Chip, Avatar } from '@mui/material';
+import { Box, Typography, Card, CardActionArea, Stack, Avatar } from '@mui/material';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import EngineeringIcon from '@mui/icons-material/Engineering';
@@ -27,8 +27,8 @@ export default function Connect() {
       }} />
 
       <Box sx={{ position: 'relative', p: 3, pt: 7, textAlign: 'center', mb: 4 }}>
-        <Box component="img" src="/icon.svg" alt=""
-          sx={{ width: 84, height: 84, borderRadius: 4, mb: 2.5, boxShadow: '0 14px 32px rgba(13,71,161,0.32)' }} />
+        <Box component="img" src="/bpm-logo-official.png" alt="BPM Portal"
+          sx={{ width: 72, height: 72, objectFit: 'contain', mb: 2.5 }} />
         <Typography variant="h4" fontWeight={800} letterSpacing={-0.5}>BPM Field</Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mt: 0.75 }}>Choose what you'd like to connect to</Typography>
       </Box>
@@ -61,7 +61,11 @@ export default function Connect() {
           Installable — add to your home screen for a full-screen app.
         </Typography>
       </Box>
-      <Chip label="BPM Portal · PWA" size="small" variant="outlined" sx={{ alignSelf: 'center', mb: 3, color: 'text.secondary' }} />
+      <Box sx={{ display: 'flex', alignItems: 'center', alignSelf: 'center', gap: 1, mb: 3 }}>
+        <Box component="img" src="/bpm-logo-official.png" alt="BPM Portal"
+          sx={{ width: 28, height: 28, objectFit: 'contain' }} />
+        <Typography variant="caption" color="text.secondary">BPM Portal · PWA</Typography>
+      </Box>
     </Box>
   );
 }
