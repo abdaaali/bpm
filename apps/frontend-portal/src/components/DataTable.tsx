@@ -30,7 +30,7 @@ export default function DataTable<T>({
         <Box p={4} display="flex" justifyContent="center"><CircularProgress /></Box>
       ) : (
         <Table sx={{ '& .MuiTableCell-root': { py: 1.5 } }}>
-          <TableHead sx={{ bgcolor: 'grey.50' }}>
+          <TableHead sx={{ bgcolor: 'action.hover' }}>
             <TableRow>
               {columns.map(c => <TableCell key={c.key} align={c.align}>{c.label}</TableCell>)}
             </TableRow>

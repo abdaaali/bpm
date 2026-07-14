@@ -242,7 +242,7 @@ export default function ContractorDashboard() {
           <TableContainer>
             <Table size="small">
               <TableHead>
-                <TableRow sx={{ bgcolor: 'grey.50' }}>
+                <TableRow sx={{ bgcolor: 'action.hover' }}>
                   <TableCell><b>Company</b></TableCell>
                   <TableCell align="right"><b>Active</b></TableCell>
                   <TableCell align="right"><b>Overdue</b></TableCell>

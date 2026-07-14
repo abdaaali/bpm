@@ -1,7 +1,7 @@
 /**
  * Case-operations domains — the single source of truth for how case types are
- * grouped into the three scoped "apps" (Service Operations / Security Operations
- * / Field & Logistics). Launcher tiles, ModuleNav sub-tabs, and CaseList scoping
+ * grouped into the four scoped apps (Service Operations / IT Service Management /
+ * Security Operations / Field & Logistics). Launcher tiles, ModuleNav sub-tabs, and CaseList scoping
  * all derive from this map, so the grouping is changed in exactly one place.
  */
 export interface DomainType { key: string; label: string; }

@@ -230,7 +230,7 @@ export default function RcaPage() {
               <TableHead><TableRow>{['Configuration item', 'Incidents (30d)', 'Recent (7d)', 'Anomaly score', ''].map(h => <TableCell key={h}>{h}</TableCell>)}</TableRow></TableHead>
               <TableBody>
                 {emerging.anomalies.map((a: any) => (
-                  <TableRow key={a.ci} hover sx={{ bgcolor: '#fff8e1' }}>
+                  <TableRow key={a.ci} hover sx={{ bgcolor: (t) => t.palette.mode === 'dark' ? 'rgba(181,118,15,0.13)' : '#fff8e1' }}>
                     <TableCell sx={{ fontWeight: 600 }}>{a.ci}</TableCell>
                     <TableCell>{a.total}</TableCell>
                     <TableCell>{a.recent}{a.recent >= a.total / 2 ? ' ↑' : ''}</TableCell>

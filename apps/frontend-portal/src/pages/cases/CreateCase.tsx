@@ -6,6 +6,7 @@ import {
   FormControl, InputLabel, Select, Alert, Autocomplete, Divider, Chip,
   FormControlLabel, Checkbox,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import BuildIcon from '@mui/icons-material/Build';
 import ChangeCircleIcon from '@mui/icons-material/ChangeCircle';
@@ -48,43 +49,43 @@ const TYPE_CONFIGS = [
   // ── Service Operations ──
   { type: 'incident', label: 'Incident', group: 'Service Operations',
     description: 'Unplanned service interruption or degradation',
-    Icon: BugReportIcon, color: '#d32f2f', bg: '#ffebee' },
+    Icon: BugReportIcon, color: '#d32f2f' },
   { type: 'fault', label: 'Fault', group: 'Service Operations',
     description: 'Technical failure detected via alarms or field observation',
-    Icon: ReportProblemIcon, color: '#e65100', bg: '#fff3e0' },
+    Icon: ReportProblemIcon, color: '#e65100' },
   { type: 'problem', label: 'Problem', group: 'Service Operations',
     description: 'Root cause investigation for recurring issues',
-    Icon: BuildIcon, color: '#f57c00', bg: '#fff3e0' },
+    Icon: BuildIcon, color: '#f57c00' },
   { type: 'pdt', label: 'Performance Degradation', group: 'Service Operations',
     description: 'KPI deterioration without a direct outage',
-    Icon: TrendingDownIcon, color: '#00897b', bg: '#e0f2f1' },
+    Icon: TrendingDownIcon, color: '#00897b' },
   // ── IT Service Management ──
   { type: 'change', label: 'Change Request', group: 'IT Service Management',
     description: 'Planned modification to infrastructure or services',
-    Icon: ChangeCircleIcon, color: '#1976d2', bg: '#e3f2fd' },
+    Icon: ChangeCircleIcon, color: '#1976d2' },
   { type: 'request', label: 'Service Request', group: 'IT Service Management',
     description: 'Standard service, access, or information request',
-    Icon: HelpOutlineIcon, color: '#388e3c', bg: '#e8f5e9' },
+    Icon: HelpOutlineIcon, color: '#388e3c' },
   { type: 'alarm', label: 'Alarm', group: 'IT Service Management',
     description: 'Alert escalated from automated monitoring',
-    Icon: NotificationsActiveIcon, color: '#7b1fa2', bg: '#f3e5f5' },
+    Icon: NotificationsActiveIcon, color: '#7b1fa2' },
   // ── Security Operations ──
   { type: 'theft', label: 'Theft Case', group: 'Security Operations',
     description: 'Theft reporting, investigation and recovery',
-    Icon: SecurityIcon, color: '#c62828', bg: '#ffebee' },
+    Icon: SecurityIcon, color: '#c62828' },
   { type: 'security_audit', label: 'Security Audit', group: 'Security Operations',
     description: 'Planned security-control audit and findings',
-    Icon: FactCheckIcon, color: '#5e35b1', bg: '#ede7f6' },
+    Icon: FactCheckIcon, color: '#5e35b1' },
   // ── Field & Logistics ──
   { type: 'asset_movement', label: 'Asset Movement', group: 'Field & Logistics',
     description: 'Move equipment between sites, warehouses or repair',
-    Icon: LocalShippingIcon, color: '#1565c0', bg: '#e3f2fd' },
+    Icon: LocalShippingIcon, color: '#1565c0' },
   { type: 'convoy', label: 'Convoy', group: 'Field & Logistics',
     description: 'Secure escorted movement of assets or personnel',
-    Icon: AltRouteIcon, color: '#37474f', bg: '#eceff1' },
+    Icon: AltRouteIcon, color: '#37474f' },
   { type: 'spare_part', label: 'Spare-Part Request', group: 'Field & Logistics',
     description: 'Spare-part request and fulfilment',
-    Icon: Inventory2Icon, color: '#6d4c41', bg: '#efebe9' },
+    Icon: Inventory2Icon, color: '#6d4c41' },
 ];
 
 const TYPE_GROUPS = ['Service Operations', 'IT Service Management', 'Security Operations', 'Field & Logistics'];
@@ -127,8 +128,11 @@ export default function CreateCase() {
   const orgUnits: any[] = (orgData?.data || []).filter((ou: any) => ou.type === 'team');
 
   const { data: usersData } = useQuery(
-    ['users-assignee-create', assigneeSearch],
-    () => orgApi.getUsers(1, 50, assigneeSearch ? { search: assigneeSearch } : {}),
+    ['users-assignee-create', assigneeSearch, form.assigned_team_id],
+    // Scoped to the selected team once one is picked, same as CaseDetail's
+    // Reassign dialog — narrows to that team's members instead of a blind
+    // org-wide search.
+    () => orgApi.getUsers(1, 50, { ...(assigneeSearch ? { search: assigneeSearch } : {}), ...(form.assigned_team_id ? { orgUnitId: form.assigned_team_id } : {}) }),
     { enabled: !!selectedType },
   );
   const userOptions: any[] = usersData?.data || [];
@@ -246,7 +250,7 @@ export default function CreateCase() {
           <Box key={groupName} sx={{ mb: 3 }}>
             <Typography variant="overline" color="text.secondary" fontWeight={700}>{groupName}</Typography>
             <Grid container spacing={2} sx={{ mt: 0 }}>
-              {TYPE_CONFIGS.filter(t => t.group === groupName).map(({ type, label, description, Icon, color, bg }) => (
+              {TYPE_CONFIGS.filter(t => t.group === groupName).map(({ type, label, description, Icon, color }) => (
                 <Grid item xs={12} sm={6} md={3} key={type}>
                   <Card
                     sx={{
@@ -257,7 +261,7 @@ export default function CreateCase() {
                     onClick={() => setSelectedType(type)}
                   >
                     <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, p: 2.5 }}>
-                      <Box sx={{ width: 48, height: 48, borderRadius: '50%', bgcolor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Box sx={{ width: 48, height: 48, borderRadius: '50%', bgcolor: (t) => alpha(color, t.palette.mode === 'dark' ? 0.24 : 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Icon sx={{ fontSize: 24, color }} />
                       </Box>
                       <Typography variant="subtitle1" fontWeight={600} textAlign="center">{label}</Typography>
@@ -283,7 +287,7 @@ export default function CreateCase() {
         Change Type
       </Button>
       <Box display="flex" alignItems="center" gap={2} mb={3}>
-        <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: (t) => alpha(cfg.color, t.palette.mode === 'dark' ? 0.24 : 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <TypeIcon sx={{ color: cfg.color }} />
         </Box>
         <Typography variant="h4">New {cfg.label}</Typography>
@@ -424,7 +428,7 @@ export default function CreateCase() {
                 )}
               />
               {selectedHost && (
-                <Box sx={{ mt: 1.5, p: 1.5, bgcolor: '#e3f2fd', borderRadius: 1, border: '1px solid #90caf9' }}>
+                <Box sx={{ mt: 1.5, p: 1.5, bgcolor: (t) => t.palette.mode === 'dark' ? 'rgba(40,86,201,0.14)' : '#e3f2fd', borderRadius: 1, border: '1px solid', borderColor: 'info.main' }}>
                   <Typography variant="caption" color="primary" fontWeight={700}>
                     Auto-filled from: {selectedHost.host_name}
                   </Typography>
@@ -483,7 +487,7 @@ export default function CreateCase() {
                   const bd = slaPreview.breakdown; const tv = bd.travel || {};
                   const due = slaPreview.sla?.sla_due_at ? new Date(slaPreview.sla.sla_due_at) : null;
                   return (
-                    <Box sx={{ mt: 1.5, p: 1.5, bgcolor: '#fff3e0', borderRadius: 1, border: '1px solid #ffb74d' }}>
+                    <Box sx={{ mt: 1.5, p: 1.5, bgcolor: (t) => t.palette.mode === 'dark' ? 'rgba(181,118,15,0.14)' : '#fff3e0', borderRadius: 1, border: '1px solid', borderColor: 'warning.main' }}>
                       <Typography variant="caption" color="warning.dark" fontWeight={700}>
                         Hybrid SLA preview · {calcPriority} {selectedType}
                         {tv.capped && <Chip size="small" color="warning" label="travel capped" sx={{ ml: 1, height: 18 }} />}
@@ -635,7 +639,9 @@ export default function CreateCase() {
                   </Box>
                 )}
                 renderInput={(params) => (
-                  <TextField {...params} label="Assignee (optional)" placeholder="Search by name…" />
+                  <TextField {...params}
+                    label={form.assigned_team_id ? 'Assignee (this team, optional)' : 'Assignee (optional)'}
+                    placeholder="Search by name…" />
                 )}
               />
             </CardContent>
@@ -649,7 +655,7 @@ export default function CreateCase() {
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                   <Typography variant="body2" color="text.secondary">Type</Typography>
                   <Chip label={cfg.label} size="small"
-                    sx={{ bgcolor: cfg.bg, color: cfg.color, fontWeight: 600 }} />
+                    sx={{ bgcolor: (t) => alpha(cfg.color, t.palette.mode === 'dark' ? 0.24 : 0.12), color: cfg.color, fontWeight: 600 }} />
                 </Box>
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                   <Typography variant="body2" color="text.secondary">Priority</Typography>

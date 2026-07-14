@@ -31,7 +31,7 @@ export default function CaseList() {
   const [priority, setPriority] = useState('');
 
   // Type scope is driven by the URL: an explicit ?type= (one case type), else a
-  // ?domain= (the Service/Security/Field group → that domain's types), else all.
+  // ?domain= (the Service/ITSM/Security/Field group → that domain's types), else all.
   const domainKey = searchParams.get('domain') || domainForType(searchParams.get('type'));
   const typeKey = searchParams.get('type') || '';
   const effectiveType = typeKey || (domainKey ? typeKeysForDomain(domainKey).join(',') : '');

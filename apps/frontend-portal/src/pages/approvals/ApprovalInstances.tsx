@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import {
   Box, Typography, Card, Table, TableHead, TableBody, TableRow, TableCell,
@@ -18,8 +19,21 @@ const STATUS_COLOR: Record<string, any> = {
 export default function ApprovalInstances() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const [params] = useSearchParams();
+  // Arriving from the Home "Management" cards: scope=organization narrows to
+  // approvals requested by people in the leader's org tree (same scoping as
+  // the leadership-summary counters), and attention=urgent further narrows to
+  // escalated/overdue — see instance.service.ts's findOrganizationScoped.
+  // Without this, every card landed on the exact same unfiltered list.
+  const scope = params.get('scope');
+  const attention = params.get('attention') || undefined;
+  const isOrgScoped = scope === 'organization';
+  // "Awaiting My Approval" — reuses the same listPending endpoint ToDo's
+  // approvals section already shows, so this view and that count always agree.
+  const isMineScoped = scope === 'mine';
+
   const [page, setPage] = useState(0);
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState(params.get('status') || '');
   const [viewing, setViewing] = useState<any>(null);
   const [loadingView, setLoadingView] = useState(false);
   const [action, setAction] = useState<'approve' | 'reject'>('approve');
@@ -27,8 +41,10 @@ export default function ApprovalInstances() {
   const [decideError, setDecideError] = useState('');
 
   const { data, isLoading } = useQuery(
-    ['approval-instances', page, filterStatus],
-    () => approvalApi.listInstances(filterStatus ? { status: filterStatus } : {}, page + 1, 20),
+    ['approval-instances', page, filterStatus, isOrgScoped, isMineScoped, attention],
+    () => isOrgScoped ? approvalApi.listOrganizationScoped({ attention }, page + 1, 20)
+      : isMineScoped ? approvalApi.listPending(page + 1, 20)
+      : approvalApi.listInstances(filterStatus ? { status: filterStatus } : {}, page + 1, 20),
   );
 
   const openView = async (inst: any) => {
@@ -75,17 +91,36 @@ export default function ApprovalInstances() {
     <Box>
       <BackButton to="/home" label="Back to Home" sx={{ mb: 1 }} />
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Approval Instances</Typography>
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <InputLabel>Filter by status</InputLabel>
-          <Select label="Filter by status" value={filterStatus}
-            onChange={e => { setFilterStatus(e.target.value); setPage(0); }}>
-            <MenuItem value="">All</MenuItem>
-            <MenuItem value="pending">Pending</MenuItem>
-            <MenuItem value="approved">Approved</MenuItem>
-            <MenuItem value="rejected">Rejected</MenuItem>
-          </Select>
-        </FormControl>
+        <Box>
+          <Typography variant="h4">
+            {attention === 'urgent' ? 'Overdue & Escalated Approvals'
+              : isOrgScoped ? 'My Organization Approvals'
+              : isMineScoped ? 'Awaiting My Approval'
+              : 'Approval Instances'}
+          </Typography>
+          {isOrgScoped && (
+            <Typography variant="body2" color="text.secondary">
+              {attention === 'urgent'
+                ? 'Escalated, or pending past their due date — requested by your organization and its teams.'
+                : 'Pending or escalated — requested by your organization and its teams.'}
+            </Typography>
+          )}
+          {isMineScoped && (
+            <Typography variant="body2" color="text.secondary">Decisions personally assigned to you that are still pending.</Typography>
+          )}
+        </Box>
+        {!isOrgScoped && !isMineScoped && (
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Filter by status</InputLabel>
+            <Select label="Filter by status" value={filterStatus}
+              onChange={e => { setFilterStatus(e.target.value); setPage(0); }}>
+              <MenuItem value="">All</MenuItem>
+              <MenuItem value="pending">Pending</MenuItem>
+              <MenuItem value="approved">Approved</MenuItem>
+              <MenuItem value="rejected">Rejected</MenuItem>
+            </Select>
+          </FormControl>
+        )}
       </Box>
 
       <Card>

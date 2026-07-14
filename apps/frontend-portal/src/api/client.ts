@@ -37,7 +37,10 @@ export const orgApi = {
   deactivateUser:      (id: string)              => axios.delete(`${BASE}/users/${id}`, { headers: headers() }).then(r => r.data),
   activateUser:        (id: string)              => axios.delete(`${BASE}/users/${id}?action=activate`, { headers: headers() }).then(r => r.data),
   getUserManagers:     (id: string)              => axios.get(`${BASE}/users/${id}/managers`, { headers: headers() }).then(r => r.data),
+  getUserHierarchy:    (id: string)              => axios.get(`${BASE}/users/${id}/hierarchy`, { headers: headers() }).then(r => r.data),
   assignOrgUnit:       (id: string, dto: any)    => axios.post(`${BASE}/users/${id}/assignments`, dto, { headers: headers() }).then(r => r.data),
+  forcePasswordReset:  (id: string)              => axios.post(`${BASE}/users/${id}/force-password-reset`, {}, { headers: headers() }).then(r => r.data),
+  removeAssignment:    (userId: string, assignmentId: string) => axios.delete(`${BASE}/users/${userId}/assignments/${assignmentId}`, { headers: headers() }).then(r => r.data),
 
   // Positions
   getPositions:        (orgUnitId?: string)      => axios.get(`${BASE}/positions${orgUnitId ? `?orgUnitId=${orgUnitId}` : ''}`, { headers: headers() }).then(r => r.data),
@@ -46,6 +49,7 @@ export const orgApi = {
 
   // Roles
   getRoles:            ()                        => axios.get(`${BASE}/roles`, { headers: headers() }).then(r => r.data),
+  createRole:          (dto: any)                => axios.post(`${BASE}/roles`, dto, { headers: headers() }).then(r => r.data),
   updateRole:          (id: string, dto: any)    => axios.put(`${BASE}/roles/${id}`, dto, { headers: headers() }).then(r => r.data),
 };
 
@@ -57,6 +61,8 @@ export const approvalApi = {
   updatePolicy:   (id: string, dto: any)   => axios.put(`${BASE}/approval/policies/${id}`, dto, { headers: headers() }).then(r => r.data),
   listInstances:  (q: any, p = 1, ps = 20) => axios.get(`${BASE}/approval/instances`, { params: { ...q, page: p, pageSize: ps }, headers: headers() }).then(r => r.data),
   listPending:    (p = 1, ps = 50)         => axios.get(`${BASE}/approval/instances/pending?page=${p}&pageSize=${ps}`, { headers: headers() }).then(r => r.data),
+  leadershipSummary: ()                    => axios.get(`${BASE}/approval/instances/leadership-summary`, { headers: headers() }).then(r => r.data),
+  listOrganizationScoped: (q: any, p = 1, ps = 20) => axios.get(`${BASE}/approval/instances/organization`, { params: { ...q, page: p, pageSize: ps }, headers: headers() }).then(r => r.data),
   getInstance:    (id: string)             => axios.get(`${BASE}/approval/instances/${id}`, { headers: headers() }).then(r => r.data),
   createInstance: (dto: any)               => axios.post(`${BASE}/approval/instances`, dto, { headers: headers() }).then(r => r.data),
   approveStep:    (id: string, stepId: string, dto: any) => axios.post(`${BASE}/approval/instances/${id}/steps/${stepId}/approve`, dto, { headers: headers() }).then(r => r.data),

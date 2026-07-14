@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline, CircularProgress, Box } from '@mui/material';
 import { useAuth } from './auth/AuthContext';
 import { setAuthHeaders } from './api/client';
-import { theme } from './theme/theme';
+import { createAppTheme } from './theme/theme';
+import type { PaletteMode } from '@mui/material';
 import Layout from './components/Layout';
 import Dashboard from './pages/dashboard/Dashboard';
 import Workplace from './pages/workplace/Workplace';
@@ -41,6 +42,17 @@ import RequirePerm from './components/RequirePerm';
 
 export default function App() {
   const { user, loading } = useAuth();
+  const [mode, setMode] = useState<PaletteMode>(() => {
+    const saved = localStorage.getItem('bpm_color_mode');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+  const appTheme = useMemo(() => createAppTheme(mode), [mode]);
+  const toggleMode = () => setMode(current => {
+    const next = current === 'light' ? 'dark' : 'light';
+    localStorage.setItem('bpm_color_mode', next);
+    return next;
+  });
 
   // Set synchronously on every render so headers() is always up-to-date
   // before any child component's query fires.
@@ -57,9 +69,9 @@ export default function App() {
   if (!user) return null; // Keycloak redirects to login
 
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={appTheme}>
       <CssBaseline />
-      <Layout>
+      <Layout colorMode={mode} onToggleColorMode={toggleMode}>
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<HomePage />} />
@@ -85,7 +97,12 @@ export default function App() {
           <Route path="/processes/instances/:id" element={<RequirePerm perm="processes:read"><ProcessInstanceDetail /></RequirePerm>} />
           <Route path="/processes/analytics" element={<RequirePerm perm="processes:read"><ProcessAnalytics /></RequirePerm>} />
           <Route path="/reports" element={<RequirePerm perm="analytics:read"><ReportBuilder /></RequirePerm>} />
-          <Route path="/digest" element={<RequirePerm perm="analytics:read"><ManagementDigest /></RequirePerm>} />
+          {/* notifications:manage, not analytics:read — this page is governance
+              reporting for leadership (its own canManage check already gates
+              editing on the same permission); analytics:read is held by
+              individual-contributor roles like IT Engineer for Reports access
+              and would otherwise let them into this page too. */}
+          <Route path="/digest" element={<RequirePerm perm="notifications:manage"><ManagementDigest /></RequirePerm>} />
           <Route path="/approvals/policies" element={<ApprovalPolicies />} />
           <Route path="/approvals/instances" element={<ApprovalInstances />} />
           <Route path="/org" element={<OrgStructure />} />

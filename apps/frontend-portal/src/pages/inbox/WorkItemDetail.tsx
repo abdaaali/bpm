@@ -95,7 +95,7 @@ function CommentBubble({ comment, users }: { comment: any; users: any[] }) {
           </Typography>
           {comment.stepName && <Chip label={comment.stepName} size="small" sx={{ height: 16, fontSize: 10 }} />}
         </Box>
-        <Paper variant="outlined" sx={{ px: 1.5, py: 1, borderRadius: 2, bgcolor: 'grey.50' }}>
+        <Paper variant="outlined" sx={{ px: 1.5, py: 1, borderRadius: 2, bgcolor: 'action.hover' }}>
           <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{comment.message}</Typography>
         </Paper>
       </Box>
@@ -378,7 +378,7 @@ export default function WorkItemDetail({ mode }: { mode: 'task' | 'request' }) {
                           <Box mt={1} display="flex" flexWrap="wrap" gap={0.5}>
                             {varEntries.slice(0, 6).map(([k, v]) => (
                               <Typography key={k} variant="caption" sx={{
-                                bgcolor: 'white', border: '1px solid', borderColor: 'divider',
+                                bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider',
                                 borderRadius: 1, px: 0.75, py: 0.25,
                               }}>
                                 <strong>{k}:</strong> {String(v).slice(0, 50)}

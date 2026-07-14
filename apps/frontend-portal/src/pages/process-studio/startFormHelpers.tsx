@@ -5,7 +5,12 @@
 import React, { useState } from 'react';
 import {
   Box, TextField, Select, MenuItem, FormControl, InputLabel, FormControlLabel, Checkbox, Typography, Button,
+  Stack, Chip, CircularProgress,
 } from '@mui/material';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import ImageIcon from '@mui/icons-material/Image';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import CloseIcon from '@mui/icons-material/Close';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -179,6 +184,34 @@ export function isFormComplete(fields: FieldDef[], values: Record<string, string
   return fields.every(f => !f.required || (values[f.key] ?? '').trim() !== '');
 }
 
+// ── File field helpers ──────────────────────────────────────────────────────
+
+type UploadedFile = { id: string; name: string; type: string; size?: number };
+
+// A 'file' field's value is a JSON array of {id,name,type,size} (multi-file) —
+// falls back to treating a bare attachment-id string as a single legacy item.
+function parseFileValue(value: string): UploadedFile[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed;
+  } catch { /* not JSON — legacy single-id value */ }
+  return [{ id: value, name: 'uploaded file', type: '' }];
+}
+
+function fileTypeIcon(type: string) {
+  if (type.startsWith('image/')) return <ImageIcon fontSize="small" />;
+  if (type === 'application/pdf') return <PictureAsPdfIcon fontSize="small" />;
+  return <InsertDriveFileIcon fontSize="small" />;
+}
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 // ── Single dynamic field renderer ─────────────────────────────────────────────
 
 export function DynField({ field, value, onChange }: {
@@ -188,26 +221,84 @@ export function DynField({ field, value, onChange }: {
 }) {
   if (field.type === 'file') {
     const [uploading, setUploading] = useState(false);
-    const [fileName, setFileName] = useState('');
+    const [uploadError, setUploadError] = useState('');
+    const files = parseFileValue(value);
+
+    // Takes a plain File[] snapshot, NOT the input's live FileList — reading
+    // `input.files` returns a reference that's tied to the input element, and
+    // clearing `input.value` (done immediately on selection, below, so the
+    // same file can be re-selected later) empties that SAME FileList object
+    // out from under any in-flight async code still holding a reference to
+    // it. Awaiting the dynamic import before ever touching the list was
+    // enough for the browser to already clear it — every upload silently ran
+    // over zero files, so nothing ever actually uploaded. Snapshotting into a
+    // plain array up front avoids depending on the live FileList at all.
+    const handleFiles = async (fileList: File[]) => {
+      if (!fileList.length) return;
+      setUploading(true);
+      setUploadError('');
+      try {
+        const { attachmentApi } = await import('../../api/client');
+        const uploaded: UploadedFile[] = [];
+        for (const f of fileList) {
+          // Nil UUID: a fixed, always-valid placeholder satisfying
+          // attachments.entity_id's NOT NULL uuid column — the file's real
+          // ownership is tracked by its own attachment id (recorded in this
+          // field's value), not by this staging entityId, so it doesn't need
+          // to be unique per session. case-service re-homes the attachment
+          // onto the real case once one exists — see reassignStagedAttachments
+          // in case.service.ts, called from create().
+          const att = await attachmentApi.upload('form-field-staging', '00000000-0000-0000-0000-000000000000', f);
+          uploaded.push({ id: att.id, name: f.name, type: f.type, size: f.size });
+        }
+        const merged = [...files, ...uploaded];
+        // '' not '[]' when there's nothing — see the same note in removeFile.
+        onChange(merged.length ? JSON.stringify(merged) : '');
+      } catch (e: any) {
+        setUploadError(e?.response?.data?.message || 'Upload failed');
+      } finally {
+        setUploading(false);
+      }
+    };
+
+    const removeFile = async (id: string) => {
+      // '' (not '[]') when the last file is removed, so isFormComplete's
+      // `.trim() !== ''` required-field check correctly reads this as empty
+      // again — "[]" is non-empty as a string and would falsely pass.
+      const remaining = files.filter(f => f.id !== id);
+      onChange(remaining.length ? JSON.stringify(remaining) : '');
+      try {
+        const { attachmentApi } = await import('../../api/client');
+        await attachmentApi.remove(id);
+      } catch { /* best-effort — staged file just goes unreferenced if this fails */ }
+    };
+
     return (
       <Box>
         <Typography variant="body2" sx={{ mb: 0.5 }}>{field.label}{field.required && ' *'}</Typography>
-        <Button component="label" size="small" variant="outlined" disabled={uploading}>
-          {uploading ? 'Uploading…' : value ? `Replace file (${fileName || 'uploaded'})` : 'Choose file'}
-          <input type="file" hidden onChange={async e => {
-            const f = e.target.files?.[0];
-            if (!f) return;
-            setUploading(true);
-            setFileName(f.name);
-            try {
-              const { attachmentApi } = await import('../../api/client');
-              const att = await attachmentApi.upload('form-field-staging', 'pending', f);
-              onChange(att.id);
-            } finally {
-              setUploading(false);
-            }
+        <Button component="label" size="small" variant="outlined" disabled={uploading}
+          startIcon={uploading ? <CircularProgress size={14} /> : undefined}>
+          {uploading ? 'Uploading…' : files.length ? 'Add more files' : 'Choose file(s)'}
+          <input type="file" multiple hidden onChange={e => {
+            const selected = Array.from(e.target.files || []);
+            e.target.value = ''; // safe now — handleFiles already has its own plain-array copy
+            handleFiles(selected);
           }} />
         </Button>
+        {uploadError && <Typography variant="caption" color="error.main" display="block" mt={0.5}>{uploadError}</Typography>}
+        {files.length > 0 && (
+          <Stack direction="row" flexWrap="wrap" gap={1} mt={1}>
+            {files.map(f => (
+              <Chip
+                key={f.id}
+                icon={fileTypeIcon(f.type)}
+                label={`${f.name}${f.size ? ` (${formatFileSize(f.size)})` : ''}`}
+                onDelete={() => removeFile(f.id)}
+                deleteIcon={<CloseIcon fontSize="small" />}
+                variant="outlined" size="small" />
+            ))}
+          </Stack>
+        )}
       </Box>
     );
   }

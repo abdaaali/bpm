@@ -146,7 +146,7 @@ function collectModelFields(modeler: any): { key: string; label: string; type: s
 // Section header with divider
 function SectionHeader({ title }: { title: string }) {
   return (
-    <Box sx={{ px: 2, py: 1, bgcolor: '#f8f8f8', borderTop: '1px solid #e8e8e8', borderBottom: '1px solid #e8e8e8', mt: 1 }}>
+    <Box sx={{ px: 2, py: 1, bgcolor: 'action.hover', borderTop: '1px solid', borderBottom: '1px solid', borderColor: 'divider', mt: 1 }}>
       <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.8 }}>
         {title}
       </Typography>
@@ -298,7 +298,7 @@ function FormFieldEditor({ fields, onChange, addLabel }: {
         sx={{
           display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 1,
           border: '1px dashed #bdbdbd', borderRadius: 1.5, cursor: 'pointer', color: 'text.secondary',
-          '&:hover': { bgcolor: '#f5f5f5', borderColor: 'primary.main', color: 'primary.main' },
+          '&:hover': { bgcolor: 'action.hover', borderColor: 'primary.main', color: 'primary.main' },
           transition: 'all 0.15s',
         }}>
         <AddIcon fontSize="small" />
@@ -336,7 +336,7 @@ function ConditionBuilder({ value, fields, onChange }: {
   const emit = (f: string, o: string, v: string) => onChange(buildExpr(f, o, v));
 
   return (
-    <Box sx={{ border: '1px solid #e3f2fd', bgcolor: '#f7fbff', borderRadius: 1, p: 1.25, mb: 1.5 }}>
+    <Box sx={{ border: '1px solid', borderColor: 'info.main', bgcolor: (t) => t.palette.mode === 'dark' ? 'rgba(40,86,201,0.12)' : '#f7fbff', borderRadius: 1, p: 1.25, mb: 1.5 }}>
       <Typography variant="caption" sx={{ fontWeight: 600, color: 'primary.main' }}>Condition builder</Typography>
       <Stack spacing={1} mt={0.5}>
         <FormControl size="small" fullWidth>
@@ -759,7 +759,7 @@ export default function PropertiesPanel({ modeler, slug, processName }: Properti
       )}
 
       <Divider sx={{ mt: 'auto' }} />
-      <Box sx={{ px: 2, py: 1, bgcolor: '#fafafa' }}>
+      <Box sx={{ px: 2, py: 1, bgcolor: 'action.hover' }}>
         <Typography variant="caption" color="text.disabled">
           Changes apply automatically. Save the diagram with the Save button above.
         </Typography>

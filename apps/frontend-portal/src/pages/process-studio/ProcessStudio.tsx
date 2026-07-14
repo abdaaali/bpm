@@ -215,8 +215,16 @@ function convertFormProperties(xml: string): string {
   // close tag. Built via new RegExp (not a /</ literal) to dodge the TS5.3 parser.
   const fpReSrc = '<([a-zA-Z0-9_]+):formProperty\\s([^>]*?)(?:/>|>([\\s\\S]*?)</\\1:formProperty>)';
 
+  // The open-tag alternative deliberately excludes self-closing tags
+  // (`[^>]*[^/>]` forbids the char right before `>` from being `/`) — a
+  // self-closing <userTask .../> (e.g. one using formKey="approval" instead
+  // of inline formProperty children) has no body and no matching close tag;
+  // without this exclusion the non-greedy body match walks forward to the
+  // *next* unrelated </userTask>/</startEvent> in the document and grafts
+  // that element's fields onto this one, corrupting the self-close and
+  // unbalancing every tag after it.
   return xml.replace(
-    /(<(?:bpmn2?:)?(?:userTask|startEvent)\s[^>]*>)([\s\S]*?)(<\/(?:bpmn2?:)?(?:userTask|startEvent)>)/gi,
+    /(<(?:bpmn2?:)?(?:userTask|startEvent)(?:\s[^>]*[^/>])?>)([\s\S]*?)(<\/(?:bpmn2?:)?(?:userTask|startEvent)>)/gi,
     (_, openTag: string, body: string, closeTag: string) => {
       if (openTag.includes('formFields=')) return openTag + body + closeTag;
 
@@ -516,7 +524,7 @@ export default function ProcessStudio() {
             <Box key={i} onClick={() => c.elementId && goToElement(c.elementId)}
               sx={{
                 display: 'flex', alignItems: 'flex-start', gap: 1, px: 1, py: 0.75, borderRadius: 1,
-                cursor: c.elementId ? 'pointer' : 'default', '&:hover': c.elementId ? { bgcolor: '#f5f5f5' } : undefined,
+                cursor: c.elementId ? 'pointer' : 'default', '&:hover': c.elementId ? { bgcolor: 'action.hover' } : undefined,
                 borderLeft: '3px solid', borderLeftColor: c.blocking ? 'error.main' : 'warning.main', mb: 0.5,
               }}>
               {c.blocking ? <ErrorOutlineIcon color="error" fontSize="small" sx={{ mt: 0.25 }} /> : <WarningAmberIcon color="warning" fontSize="small" sx={{ mt: 0.25 }} />}
@@ -552,7 +560,7 @@ export default function ProcessStudio() {
             flexGrow: 1,
             border: '1px solid #e0e0e0',
             borderRadius: 2,
-            bgcolor: '#fafafa',
+            bgcolor: 'background.paper',
             minWidth: 0,
             position: 'relative',
             overflow: 'hidden',
@@ -573,10 +581,10 @@ export default function ProcessStudio() {
             flexDirection: 'column',
           }}
         >
-          <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #e0e0e0', bgcolor: '#f5f5f5', flexShrink: 0 }}>
+          <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover', flexShrink: 0 }}>
             <Typography variant="subtitle2">Properties</Typography>
           </Box>
-          <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+          <Box sx={{ flexGrow: 1, minHeight: 0, overflowY: 'auto' }}>
             <PropertiesPanel modeler={modeler} slug={def.slug} processName={def.name} />
           </Box>
         </Paper>

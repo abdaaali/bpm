@@ -189,7 +189,7 @@ export default function NotificationTemplates() {
               <Typography variant="body2" fontWeight={600} mb={1.5}>{renderPreview(form.subject, SAMPLE) || '—'}</Typography>
               <Divider sx={{ mb: 1.5 }} />
               <Typography variant="caption" color="text.secondary">Body</Typography>
-              <Box sx={{ mt: 0.5, p: 1.5, bgcolor: '#fafafa', borderRadius: 1, border: '1px solid #eee', fontSize: 14, '& p': { my: 0.5 }, '& ul': { my: 0.5, pl: 2.5 } }}
+              <Box sx={{ mt: 0.5, p: 1.5, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider', fontSize: 14, '& p': { my: 0.5 }, '& ul': { my: 0.5, pl: 2.5 } }}
                 dangerouslySetInnerHTML={{ __html: renderPreview(form.body, SAMPLE) }} />
             </CardContent>
           </Card>

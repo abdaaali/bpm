@@ -266,7 +266,7 @@ export default function ProcessAnalytics() {
                             value={row.complianceRate}
                             sx={{
                               flexGrow: 1, height: 8, borderRadius: 4,
-                              bgcolor: '#fce4ec',
+                              bgcolor: (t) => t.palette.mode === 'dark' ? 'rgba(198,45,63,0.14)' : '#fce4ec',
                               '& .MuiLinearProgress-bar': {
                                 bgcolor: row.complianceRate >= 90 ? '#2e7d32' : row.complianceRate >= 70 ? '#ed6c02' : '#d32f2f',
                               },

@@ -102,7 +102,7 @@ function PhaseCard({ task: t, userName, initials }: {
           </Typography>
         </Box>
       </AccordionSummary>
-      <AccordionDetails sx={{ bgcolor: '#fafafa' }}>
+      <AccordionDetails sx={{ bgcolor: 'action.hover' }}>
         {/* Phase metadata */}
         <Grid container spacing={1} sx={{ mb: 1 }}>
           {[
@@ -401,7 +401,7 @@ export default function ProcessInstanceDetail() {
               minHeight: 480,
               border: '1px solid #e0e0e0',
               borderRadius: 2,
-              bgcolor: '#fafafa',
+              bgcolor: 'action.hover',
               '& .bjs-container': { height: '100%' },
             }}
           />
@@ -410,7 +410,7 @@ export default function ProcessInstanceDetail() {
         )}
           {/* Legend */}
           <Box sx={{
-            position: 'absolute', bottom: 12, right: 12, bgcolor: 'white',
+            position: 'absolute', bottom: 12, right: 12, bgcolor: 'background.paper',
             border: '1px solid #e0e0e0', borderRadius: 1, p: 1, display: 'flex', gap: 2,
           }}>
             <Box display="flex" alignItems="center" gap={0.5}>

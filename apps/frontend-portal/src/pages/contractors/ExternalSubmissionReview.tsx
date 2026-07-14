@@ -371,7 +371,7 @@ export default function ExternalSubmissionReview({ assignmentId }: ExternalSubmi
                 <Avatar sx={{ width: 32, height: 32, bgcolor: c.is_internal ? 'primary.main' : 'secondary.main', fontSize: 13 }}>
                   {c.author_name?.[0] || '?'}
                 </Avatar>
-                <Paper variant="outlined" sx={{ p: 1.5, flex: 1, bgcolor: c.is_internal ? 'grey.50' : 'white' }}>
+                <Paper variant="outlined" sx={{ p: 1.5, flex: 1, bgcolor: c.is_internal ? 'action.hover' : 'background.paper' }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                     <Typography variant="caption" fontWeight={600}>{c.author_name}</Typography>
                     <Typography variant="caption" color="text.secondary">

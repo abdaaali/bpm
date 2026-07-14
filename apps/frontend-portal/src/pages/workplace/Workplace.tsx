@@ -20,11 +20,16 @@ export default function Workplace() {
   const [params, setParams] = useSearchParams();
   const { can } = useAccess();
 
-  // Drives whether the Team Queue tab is offered: any unclaimed team case, or
-  // the ability to assign cases. Shared cache key with ToDo/TeamQueue (one query).
-  const { data: myWork = [] } = useQuery('my-work', caseApi.getMyWork);
-  const hasTeamWork = (myWork as any[]).some(c => !c.mine);
-  const showTeamQueue = hasTeamWork || can('cases:assign');
+  // Drives whether the Team Queue tab is offered. Deliberately NOT data-dependent
+  // (some unclaimed case existing right now) — a role that does team-pool work
+  // should always see its queue, even when it's currently empty; hiding the tab
+  // whenever the queue happens to be empty made it look broken/disappearing.
+  // tasks:claim is the actual signal for "this role claims pool work" (also true
+  // for cases:assign roles, who see it as managers of the queue).
+  // Kept as a query (result unused here) to keep the 'my-work' cache warm for
+  // ToDo/TeamQueue, which read the same key.
+  useQuery('my-work', caseApi.getMyWork);
+  const showTeamQueue = can('cases:assign') || can('tasks:claim');
 
   const TABS = [
     { key: 'todo',     label: 'To Do',       icon: <AssignmentIcon />, render: () => <ToDo /> },

@@ -4,18 +4,23 @@ import { Box, Typography, Grid, Card, CardActionArea, Avatar, Button, ButtonBase
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import StoreIcon from '@mui/icons-material/Store';
 import ListAltIcon from '@mui/icons-material/ListAlt';
+import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest';
+import SecurityIcon from '@mui/icons-material/Security';
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import InsightsIcon from '@mui/icons-material/Insights';
 import BarChartIcon from '@mui/icons-material/BarChart';
-import AssessmentIcon from '@mui/icons-material/Assessment';
 import PeopleIcon from '@mui/icons-material/People';
 import DnsIcon from '@mui/icons-material/Dns';
 import HubIcon from '@mui/icons-material/Hub';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import HistoryIcon from '@mui/icons-material/History';
 import TimerIcon from '@mui/icons-material/Timer';
+import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
+import GroupsIcon from '@mui/icons-material/Groups';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useAccess } from '../../auth/useAccess';
 import { useAuth } from '../../auth/AuthContext';
 import { useQuery } from 'react-query';
@@ -26,15 +31,16 @@ import KPIStatCard from '../../components/KPIStatCard';
 export interface Tile { title: string; desc: string; icon: React.ReactNode; path: string; color: string; perm?: string; }
 
 export const APPLICATIONS: Tile[] = [
-  { title: 'Operations', desc: 'Service, IT, security and field & logistics cases — one place', icon: <ListAltIcon />, path: '/cases?domain=service', color: '#455a64', perm: 'cases:read' },
+  { title: 'Service Operations', desc: 'Incidents, faults, problems and performance degradation', icon: <ListAltIcon />, path: '/cases?domain=service', color: '#455a64', perm: 'cases:read' },
+  { title: 'IT Service Management', desc: 'Changes, standard service requests and monitoring alarms', icon: <SettingsSuggestIcon />, path: '/cases?domain=itsm', color: '#1976d2', perm: 'cases:read' },
+  { title: 'Security Operations', desc: 'Theft and security audit cases', icon: <SecurityIcon />, path: '/cases?domain=security', color: '#c62828', perm: 'cases:read' },
+  { title: 'Field & Logistics', desc: 'Asset movements, convoys and spare parts', icon: <LocalShippingIcon />, path: '/cases?domain=field', color: '#ef6c00', perm: 'cases:read' },
 ];
 
 export const DASHBOARDS: Tile[] = [
   { title: 'Operational Dashboard', desc: 'Cross-platform KPIs and trends', icon: <DashboardIcon />, path: '/dashboard', color: '#1565c0', perm: 'analytics:read' },
   { title: 'Telecom Operations', desc: 'SLA, vendors, spares, security, workforce', icon: <InsightsIcon />, path: '/dashboard/operations', color: '#00838f', perm: 'cases:read' },
   { title: 'Process Performance', desc: 'Cycle time, bottlenecks, workload', icon: <BarChartIcon />, path: '/processes/analytics', color: '#2e7d32', perm: 'analytics:read' },
-  { title: 'Report Generator', desc: 'Build, export and save custom CSV reports', icon: <AssessmentIcon />, path: '/reports', color: '#ad1457', perm: 'analytics:read' },
-  { title: 'Management Digest', desc: 'Weekly governance digest — schedule & recipients', icon: <NotificationsIcon />, path: '/digest', color: '#00695c', perm: 'analytics:read' },
   { title: 'Root Cause Analysis', desc: 'RCA dashboards and taxonomy', icon: <PsychologyIcon />, path: '/rca', color: '#5d4037', perm: 'rca:read' },
 ];
 
@@ -110,14 +116,20 @@ function WorkplaceSummary() {
           </ButtonBase>
         </Box>
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={4} component={ButtonBase} onClick={() => navigate('/workplace?tab=todo')} sx={{ textAlign: 'inherit', borderRadius: 1 }}>
-            <KPIStatCard label="To Do" value={toDoCount} color="#2856c9" />
+          <Grid item xs={12} sm={4}>
+            <ButtonBase onClick={() => navigate('/workplace?tab=todo')} sx={{ display: 'block', width: '100%', height: '100%', textAlign: 'inherit', borderRadius: 1 }}>
+              <KPIStatCard label="To Do" value={toDoCount} color="#2856c9" />
+            </ButtonBase>
           </Grid>
-          <Grid item xs={12} sm={4} component={ButtonBase} onClick={() => navigate('/workplace?tab=requests')} sx={{ textAlign: 'inherit', borderRadius: 1 }}>
-            <KPIStatCard label="My Requests" value={myRequestsData?.total ?? 0} color="#1b7a4a" />
+          <Grid item xs={12} sm={4}>
+            <ButtonBase onClick={() => navigate('/workplace?tab=requests')} sx={{ display: 'block', width: '100%', height: '100%', textAlign: 'inherit', borderRadius: 1 }}>
+              <KPIStatCard label="My Requests" value={myRequestsData?.total ?? 0} color="#1b7a4a" />
+            </ButtonBase>
           </Grid>
-          <Grid item xs={12} sm={4} component={ButtonBase} onClick={() => navigate('/workplace?tab=team')} sx={{ textAlign: 'inherit', borderRadius: 1 }}>
-            <KPIStatCard label="Team Queue" value={teamCases.length} color="#b5760f" />
+          <Grid item xs={12} sm={4}>
+            <ButtonBase onClick={() => navigate('/workplace?tab=team')} sx={{ display: 'block', width: '100%', height: '100%', textAlign: 'inherit', borderRadius: 1 }}>
+              <KPIStatCard label="Team Queue" value={teamCases.length} color="#b5760f" />
+            </ButtonBase>
           </Grid>
         </Grid>
       </Box>
@@ -125,10 +137,64 @@ function WorkplaceSummary() {
   );
 }
 
+function ApprovalManagementCard() {
+  const navigate = useNavigate();
+  const { can, roles } = useAccess();
+  const leadershipRoles = new Set(['admin', 'director', 'team_leader', 'manager']);
+  const isLeadership = roles.some(role => leadershipRoles.has(role.toLowerCase().replace(/[ -]+/g, '_')));
+  const visible = isLeadership && can('approvals:read');
+  const { data: summary } = useQuery('leadership-approval-summary', approvalApi.leadershipSummary, {
+    enabled: visible,
+    staleTime: 60_000,
+  });
+
+  if (!visible) return null;
+
+  return (
+    <Box mb={3}>
+      <Typography variant="h5" fontWeight={800} mb={1.5}>Management</Typography>
+      <Grid container spacing={2.5}>
+        {[
+          {
+            title: 'Awaiting My Approval', value: summary?.awaitingMine ?? 0,
+            description: summary?.myOverdue ? `${summary.myOverdue} overdue for your decision` : 'Personally assigned decisions',
+            color: '#2856c9', icon: <AssignmentTurnedInIcon />, path: '/approvals/instances?scope=mine',
+          },
+          {
+            title: 'My Organization Approvals', value: summary?.organizationPending ?? 0,
+            description: `${summary?.scope?.name || 'Your organization'} and its teams`,
+            color: '#1b7a4a', icon: <GroupsIcon />, path: '/approvals/instances?scope=organization',
+          },
+          {
+            title: 'Overdue & Escalated', value: summary?.urgent ?? 0,
+            description: `${summary?.overdue ?? 0} overdue · ${summary?.escalated ?? 0} escalated`,
+            color: '#c2413b', icon: <WarningAmberIcon />, path: '/approvals/instances?scope=organization&attention=urgent',
+          },
+        ].map(card => (
+          <Grid item xs={12} sm={6} md={4} key={card.title}>
+            <Card sx={{ height: '100%', overflow: 'hidden', borderColor: `${card.color}47` }}>
+              <CardActionArea sx={{ p: 2.5, height: '100%' }} onClick={() => navigate(card.path)}>
+                <Box display="flex" alignItems="center" gap={1.5}>
+                  <Avatar variant="rounded" sx={{ bgcolor: card.color, width: 48, height: 48 }}>{card.icon}</Avatar>
+                  <Box flex={1} minWidth={0}>
+                    <Typography variant="h6" fontWeight={700}>{card.title}</Typography>
+                    <Typography variant="body2" color="text.secondary">{card.description}</Typography>
+                  </Box>
+                  <Typography variant="h3" fontWeight={800} sx={{ color: card.color }}>{card.value}</Typography>
+                  <ChevronRightIcon sx={{ color: card.color }} />
+                </Box>
+              </CardActionArea>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    </Box>
+  );
+}
+
 export function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { can } = useAccess();
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   return (
@@ -144,24 +210,8 @@ export function HomePage() {
         </Box>
       </Box>
       <WorkplaceSummary />
-      {APPLICATIONS.filter(t => can(t.perm)).map(t => (
-        <Card key={t.title} sx={{
-          position: 'relative', overflow: 'hidden', maxWidth: 420,
-          transition: 'box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease',
-          '&:hover': { boxShadow: '0 12px 28px rgba(15,23,42,0.14)', transform: 'translateY(-3px)', borderColor: `${t.color}55` },
-          '&:hover .tile-arrow': { opacity: 1, transform: 'translateX(0)' },
-        }}>
-          <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, bgcolor: t.color }} />
-          <CardActionArea sx={{ p: 2.75 }} onClick={() => navigate(t.path)}>
-            <Box display="flex" alignItems="center" gap={1.5} mb={1.25}>
-              <Avatar variant="rounded" sx={{ bgcolor: t.color, width: 46, height: 46, boxShadow: `0 4px 12px ${t.color}4d` }}>{t.icon}</Avatar>
-              <Typography variant="h6" fontWeight={700} flex={1}>{t.title}</Typography>
-              <ChevronRightIcon className="tile-arrow" sx={{ color: t.color, opacity: 0, transform: 'translateX(-4px)', transition: 'opacity 200ms ease, transform 200ms ease' }} />
-            </Box>
-            <Typography variant="body2" color="text.secondary">{t.desc}</Typography>
-          </CardActionArea>
-        </Card>
-      ))}
+      <ApprovalManagementCard />
+      <TileGrid title="Applications" subtitle="Choose the workspace that matches the work you need to manage" tiles={APPLICATIONS} />
     </Box>
   );
 }

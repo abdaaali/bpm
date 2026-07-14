@@ -70,7 +70,7 @@ export default function ModuleNav() {
     { staleTime: 30_000, enabled: !!user && group?.label === 'Service Catalog' },
   );
 
-  // Cases area: scoped domain tabs (Service / Security / Field), not a flat group.
+  // Cases area: scoped domain tabs (Service / ITSM / Security / Field), not a flat group.
   if (loc.pathname === '/cases' && can('cases:read')) return <CaseDomainNav />;
 
   if (!group) return null;

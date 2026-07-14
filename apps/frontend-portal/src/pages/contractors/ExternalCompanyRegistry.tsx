@@ -146,7 +146,7 @@ export default function ExternalCompanyRegistry() {
         <TableContainer component={Paper}>
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: 'grey.50' }}>
+              <TableRow sx={{ bgcolor: 'action.hover' }}>
                 <TableCell><b>Company Name</b></TableCell>
                 <TableCell><b>Type</b></TableCell>
                 <TableCell><b>Parent Company</b></TableCell>

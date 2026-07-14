@@ -90,7 +90,7 @@ export default function OpsDashboard() {
                   <Box key={t.team} mb={1}>
                     <Box display="flex" justifyContent="space-between"><Typography variant="body2" sx={{ textTransform: 'capitalize' }}>{String(t.team).replace('_', ' ')}</Typography><Typography variant="body2" fontWeight={600}>{t.open}</Typography></Box>
                     <LinearProgress variant="determinate" value={Math.min(100, t.open / maxLoad * 100)}
-                      sx={{ height: 6, borderRadius: 3, '& .MuiLinearProgress-bar': { bgcolor: TEAM_COLOR[t.team] || '#90a4ae' } }} />
+                      sx={{ height: 6, borderRadius: 3, '& .MuiLinearProgress-bar': { bgcolor: TEAM_COLOR[t.team] || 'grey.500' } }} />
                   </Box>
                 ))}
             </CardContent>
@@ -166,7 +166,7 @@ export default function OpsDashboard() {
                   <TableHead><TableRow>{['Code', 'Part', 'Location', 'Quantity', 'Reorder level', 'Status'].map(h => <TableCell key={h}>{h}</TableCell>)}</TableRow></TableHead>
                   <TableBody>
                     {(spares as any[]).map((s: any) => (
-                      <TableRow key={s.code} hover sx={{ bgcolor: s.low ? '#fff5f5' : undefined }}>
+                      <TableRow key={s.code} hover sx={{ bgcolor: s.low ? (t) => t.palette.mode === 'dark' ? 'rgba(198,45,63,0.12)' : '#fff5f5' : undefined }}>
                         <TableCell sx={{ fontFamily: 'monospace' }}>{s.code}</TableCell>
                         <TableCell>{s.name}</TableCell>
                         <TableCell>{s.location}</TableCell>

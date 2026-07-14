@@ -73,8 +73,16 @@ const ENTITY_COLORS: Record<string, string> = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { can } = useAccess();
+  const { can, roles } = useAccess();
   const isDesigner = can('processes:read'); // process monitoring is designer-only
+  // Approval workload is a management KPI, not a general approver KPI. CAB,
+  // finance and other decision roles keep their approval work in My Workplace,
+  // while leadership profiles (including the highest-privilege admin) see the
+  // platform-wide Pending Approvals card here.
+  const leadershipRoles = new Set(['admin', 'director', 'team_leader', 'manager']);
+  const hasApprovalDashboard = roles.some(role => leadershipRoles.has(role.toLowerCase().replace(/[ -]+/g, '_')));
+  const primaryKpiCount = 2 + (isDesigner ? 1 : 0) + (hasApprovalDashboard ? 1 : 0);
+  const primaryKpiWidth = 12 / primaryKpiCount;
   const [selectedDiv, setSelectedDiv] = useState('');
 
   // ── Operational data queries (no personal "my work" — that lives in Workplace) ──
@@ -130,24 +138,26 @@ export default function Dashboard() {
       {/* ── KPI Row 1 ── */}
       <Grid container spacing={2} mb={2}>
         {isDesigner && (
-          <Grid item xs={6} sm={3}>
+          <Grid item xs={6} sm={primaryKpiWidth}>
             <KpiCard label="Active Processes" value={ps.active ?? s.tasks?.inProgress}
               icon={<AccountTreeIcon />} color="#1976d2"
               sub={ps.total ? `${ps.total} total` : undefined}
               onClick={() => navigate('/processes/instances?status=active')} />
           </Grid>
         )}
-        <Grid item xs={6} sm={3}>
+        <Grid item xs={6} sm={primaryKpiWidth}>
           <KpiCard label="Open Cases" value={s.cases?.openCount ?? cs.openCount}
             icon={<FolderIcon />} color="#9c27b0"
             onClick={() => navigate('/cases')} />
         </Grid>
-        <Grid item xs={6} sm={3}>
-          <KpiCard label="Pending Approvals" value={s.approvals?.pending}
-            icon={<CheckCircleIcon />} color="#ed6c02"
-            onClick={() => navigate('/approvals/instances')} />
-        </Grid>
-        <Grid item xs={6} sm={3}>
+        {hasApprovalDashboard && (
+          <Grid item xs={6} sm={primaryKpiWidth}>
+            <KpiCard label="Pending Approvals" value={s.approvals?.pending}
+              icon={<CheckCircleIcon />} color="#ed6c02"
+              onClick={() => navigate('/approvals/instances')} />
+          </Grid>
+        )}
+        <Grid item xs={6} sm={primaryKpiWidth}>
           <KpiCard label="Overdue Tasks" value={pt.overdue ?? s.tasks?.overdue}
             icon={<SpeedIcon />} color="#d32f2f"
             sub={pt.slaBreached ? `${pt.slaBreached} SLA breaches` : undefined}
@@ -185,7 +195,7 @@ export default function Dashboard() {
 
       {/* ── SLA Alert Banner ── */}
       {((s.tasks?.slaBreached > 0) || (s.cases?.breachedCount > 0) || (cs.breachedCount > 0)) && (
-        <Card sx={{ border: '1px solid #d32f2f', mb: 3 }}>
+        <Card sx={{ borderColor: 'error.main', mb: 3 }}>
           <CardContent>
             <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
               <Box display="flex" alignItems="center" gap={1}>
@@ -241,7 +251,7 @@ export default function Dashboard() {
                   { label: 'Active instances',      value: ps.active,     color: '#1976d2' },
                   { label: 'Completed (all time)',   value: ps.completed,  color: '#2e7d32' },
                   { label: 'Suspended',              value: ps.suspended,  color: '#ed6c02' },
-                  { label: 'Terminated',             value: ps.terminated, color: '#9e9e9e' },
+                  { label: 'Terminated',             value: ps.terminated, color: 'text.disabled' },
                 ].map(item => (
                   <Box key={item.label} display="flex" justifyContent="space-between" alignItems="center">
                     <Typography variant="body2" color="text.secondary">{item.label}</Typography>
@@ -314,10 +324,10 @@ export default function Dashboard() {
                 {[
                   { label: 'Total',    value: s.mdm?.total    ?? mdmStats?.total,    color: '#1976d2' },
                   { label: 'Active',   value: s.mdm?.active   ?? mdmStats?.active,   color: '#2e7d32' },
-                  { label: 'Inactive', value: s.mdm?.inactive ?? mdmStats?.inactive, color: '#9e9e9e' },
+                  { label: 'Inactive', value: s.mdm?.inactive ?? mdmStats?.inactive, color: 'text.disabled' },
                 ].map(item => (
                   <Grid item xs={4} key={item.label}>
-                    <Box textAlign="center" p={1} sx={{ bgcolor: 'grey.50', borderRadius: 1 }}>
+                    <Box textAlign="center" p={1} sx={{ bgcolor: 'action.hover', borderRadius: 1 }}>
                       <Typography variant="h5" sx={{ color: item.color, fontWeight: 700 }}>{item.value ?? 0}</Typography>
                       <Typography variant="caption" color="text.secondary">{item.label}</Typography>
                     </Box>
@@ -480,7 +490,7 @@ export default function Dashboard() {
                 {recentAudit?.data?.map((entry: any) => (
                   <ListItem key={entry.id} disableGutters divider sx={{ py: 0.75 }}>
                     <ListItemAvatar sx={{ minWidth: 36 }}>
-                      <Avatar sx={{ width: 28, height: 28, fontSize: 12, bgcolor: ENTITY_COLORS[entry.entity_type] || '#bdbdbd' }}>
+                      <Avatar sx={{ width: 28, height: 28, fontSize: 12, bgcolor: ENTITY_COLORS[entry.entity_type] || 'grey.500' }}>
                         {(entry.entity_type || '?')[0].toUpperCase()}
                       </Avatar>
                     </ListItemAvatar>
@@ -488,7 +498,7 @@ export default function Dashboard() {
                       primary={
                         <Typography variant="body2">
                           <strong>{entry.action}</strong>{' '}
-                          <span style={{ color: '#666' }}>{entry.entity_type?.replace(/_/g, ' ')}</span>
+                          <Typography component="span" variant="inherit" color="text.secondary">{entry.entity_type?.replace(/_/g, ' ')}</Typography>
                           {entry.entity_id && (
                             <Typography component="span" variant="caption" color="text.disabled" sx={{ ml: 0.5 }}>
                               #{entry.entity_id.slice(0, 6)}

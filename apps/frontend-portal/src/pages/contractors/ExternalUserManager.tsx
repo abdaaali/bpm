@@ -158,7 +158,7 @@ export default function ExternalUserManager() {
         <TableContainer component={Paper}>
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: 'grey.50' }}>
+              <TableRow sx={{ bgcolor: 'action.hover' }}>
                 <TableCell><b>Full Name</b></TableCell>
                 <TableCell><b>Email / Username</b></TableCell>
                 <TableCell><b>Company</b></TableCell>

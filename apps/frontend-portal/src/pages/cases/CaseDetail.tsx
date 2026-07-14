@@ -24,6 +24,9 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import LinkIcon from '@mui/icons-material/Link';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import ImageIcon from '@mui/icons-material/Image';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import { caseApi, orgApi, processApi, rcaApi, datahubApi, contractorApi, attachmentApi } from '../../api/client';
 import { useAccess } from '../../auth/useAccess';
 import PageHeader from '../../components/PageHeader';
@@ -124,6 +127,12 @@ function fmtMinutes(min: number): string {
   return h > 0 ? `${h}h ${r}m` : `${r}m`;
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 export default function CaseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -199,9 +208,10 @@ export default function CaseDetail() {
   const { data: c, isLoading } = useQuery(['case', id], () => caseApi.get(id!));
   const { data: comments = [] } = useQuery(['case-comments', id], () => caseApi.getComments(id!));
   const { data: attachments = [] } = useQuery(['case-attachments', id], () => attachmentApi.list('case', id!), { enabled: !!id });
-  const uploadMut = useMutation((file: File) => attachmentApi.upload('case', id!, file), {
-    onSuccess: () => qc.invalidateQueries(['case-attachments', id]),
-  });
+  const uploadMut = useMutation(
+    (files: File[]) => Promise.all(files.map(f => attachmentApi.upload('case', id!, f))),
+    { onSuccess: () => qc.invalidateQueries(['case-attachments', id]) },
+  );
   const { data: taxonomy = [] } = useQuery('rca-taxonomy', () => rcaApi.taxonomy(), { staleTime: 300_000 });
   // RCA assist (offline, trigram k-NN) — load similar cases when on the RCA tab.
   const { data: rcaSimilar = [] } = useQuery(['rca-similar', id], () => caseApi.rcaSimilar(id!), { enabled: !!id && tab === 1, staleTime: 60_000 });
@@ -213,8 +223,11 @@ export default function CaseDetail() {
   });
   const { data: orgData } = useQuery('org-units-detail', () => orgApi.getOrgUnits(1, 200), { enabled: reassignOpen, keepPreviousData: true });
   const { data: usersData } = useQuery(
-    ['users-reassign', assigneeSearch],
-    () => orgApi.getUsers(1, 50, assigneeSearch ? { search: assigneeSearch } : {}),
+    ['users-reassign', assigneeSearch, newTeamId],
+    // Scoped to the selected team once one is picked — assigning "to a person"
+    // should mean a member of the team the case is going to, not a blind search
+    // across the whole org. Search still works within that scope.
+    () => orgApi.getUsers(1, 50, { ...(assigneeSearch ? { search: assigneeSearch } : {}), ...(newTeamId ? { orgUnitId: newTeamId } : {}) }),
     // keepPreviousData: don't blank the options (and drop the selected value) on
     // every keystroke while searching — that caused the assignee field to flicker.
     { enabled: reassignOpen, keepPreviousData: true },
@@ -553,7 +566,7 @@ export default function CaseDetail() {
                 </Box>
               ) : (
                 <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {c.description || <span style={{ color: '#9e9e9e' }}>No description provided.</span>}
+                  {c.description || <Typography component="span" color="text.disabled">No description provided.</Typography>}
                 </Typography>
               )}
             </CardContent>
@@ -588,7 +601,7 @@ export default function CaseDetail() {
                   {c.implementation_plan && (
                     <Grid item xs={12}>
                       <Typography variant="body2" color="text.secondary" mb={0.5}>Implementation Plan</Typography>
-                      <Paper variant="outlined" sx={{ p: 1.5, bgcolor: '#f9f9f9' }}>
+                      <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'action.hover' }}>
                         <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{c.implementation_plan}</Typography>
                       </Paper>
                     </Grid>
@@ -596,7 +609,7 @@ export default function CaseDetail() {
                   {c.backout_plan && (
                     <Grid item xs={12}>
                       <Typography variant="body2" color="text.secondary" mb={0.5}>Backout / Rollback Plan</Typography>
-                      <Paper variant="outlined" sx={{ p: 1.5, bgcolor: '#f9f9f9' }}>
+                      <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'action.hover' }}>
                         <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{c.backout_plan}</Typography>
                       </Paper>
                     </Grid>
@@ -621,7 +634,7 @@ export default function CaseDetail() {
                   {c.workaround && (
                     <Grid item xs={12}>
                       <Typography variant="body2" color="text.secondary" mb={0.5}>Workaround</Typography>
-                      <Paper variant="outlined" sx={{ p: 1.5, bgcolor: '#fffde7' }}>
+                      <Paper variant="outlined" sx={{ p: 1.5, bgcolor: (t) => t.palette.mode === 'dark' ? 'rgba(181,118,15,0.14)' : '#fffde7' }}>
                         <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{c.workaround}</Typography>
                       </Paper>
                     </Grid>
@@ -643,7 +656,7 @@ export default function CaseDetail() {
 
           {/* Resolution (when resolved/closed) */}
           {(c.status === 'resolved' || c.status === 'closed') && (c.resolution_code || c.resolution_notes) && (
-            <Card sx={{ mb: 3, border: '1px solid #a5d6a7' }}>
+            <Card sx={{ mb: 3, borderColor: 'success.main' }}>
               <CardContent>
                 <Typography variant="h6" color="success.dark" mb={2}>Resolution</Typography>
                 {c.resolution_code && (
@@ -969,8 +982,10 @@ export default function CaseDetail() {
               <CardContent>
                 {(comments as any[]).map((cm: any) => (
                   <Box key={cm.id} mb={2} p={2} sx={{
-                    bgcolor: cm.internal ? '#fffde7' : '#f5f5f5',
-                    borderRadius: 2, borderLeft: cm.internal ? '3px solid #f9a825' : '3px solid #e0e0e0',
+                    bgcolor: cm.internal
+                      ? (t) => t.palette.mode === 'dark' ? 'rgba(181,118,15,0.14)' : '#fffde7'
+                      : 'action.hover',
+                    borderRadius: 2, borderLeft: (t) => cm.internal ? '3px solid #f9a825' : `3px solid ${t.palette.divider}`,
                   }}>
                     <Box display="flex" justifyContent="space-between" mb={0.5}>
                       <Typography variant="caption" fontWeight={600}>
@@ -1007,7 +1022,7 @@ export default function CaseDetail() {
             <TabPanel value={tab} index={1}>
               <CardContent>
                 {/* RCA Assist — offline trigram k-NN (no model, no internet) */}
-                <Box sx={{ mb: 2, p: 1.5, bgcolor: '#f3f6fb', borderRadius: 1, border: '1px solid #e0e7f0' }}>
+                <Box sx={{ mb: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
                   <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                     <Typography variant="subtitle2" fontWeight={700}>RCA Assist <Typography component="span" variant="caption" color="text.secondary">— similar past cases (trigram k-NN)</Typography></Typography>
                     <Button size="small" variant="outlined" disabled={suggestMut.isLoading} onClick={() => suggestMut.mutate()}>
@@ -1084,17 +1099,26 @@ export default function CaseDetail() {
             <TabPanel value={tab} index={2}>
               <CardContent>
                 <Button component="label" size="small" variant="outlined" disabled={uploadMut.isLoading} sx={{ mb: 2 }}>
-                  {uploadMut.isLoading ? 'Uploading…' : 'Upload file'}
-                  <input type="file" hidden onChange={e => { const f = e.target.files?.[0]; if (f) uploadMut.mutate(f); }} />
+                  {uploadMut.isLoading ? 'Uploading…' : 'Upload file(s)'}
+                  <input type="file" multiple hidden onChange={e => {
+                    const files = Array.from(e.target.files || []);
+                    if (files.length) uploadMut.mutate(files);
+                    e.target.value = '';
+                  }} />
                 </Button>
                 {attachments.length === 0 && <Typography variant="body2" color="text.secondary">No attachments yet.</Typography>}
                 {(attachments as any[]).map(a => (
                   <Box key={a.id} display="flex" justifyContent="space-between" alignItems="center" py={1} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
-                    <Box>
-                      <Typography variant="body2">{a.filename}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {a.uploader_name || 'Unknown'} · {format(new Date(a.created_at), 'dd MMM yyyy HH:mm')}
-                      </Typography>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      {String(a.content_type || '').startsWith('image/') ? <ImageIcon fontSize="small" color="action" />
+                        : a.content_type === 'application/pdf' ? <PictureAsPdfIcon fontSize="small" color="action" />
+                        : <InsertDriveFileIcon fontSize="small" color="action" />}
+                      <Box>
+                        <Typography variant="body2">{a.filename}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {a.content_type || 'unknown type'}{a.size_bytes ? ` · ${formatBytes(Number(a.size_bytes))}` : ''} · {a.uploader_name || 'Unknown'} · {format(new Date(a.created_at), 'dd MMM yyyy HH:mm')}
+                        </Typography>
+                      </Box>
                     </Box>
                     <Button size="small" onClick={async () => {
                       const { url } = await attachmentApi.getUrl(a.id);
@@ -1294,7 +1318,7 @@ export default function CaseDetail() {
               {c.sla_profile === 'hybrid' && c.sla_breakdown?.travel && (() => {
                 const bd = c.sla_breakdown; const tv = bd.travel || {};
                 return (
-                  <Box sx={{ mt: 1.5, p: 1.5, bgcolor: '#fff3e0', borderRadius: 1, border: '1px solid #ffb74d' }}>
+                  <Box sx={{ mt: 1.5, p: 1.5, bgcolor: (t) => t.palette.mode === 'dark' ? 'rgba(181,118,15,0.14)' : '#fff3e0', borderRadius: 1, border: '1px solid', borderColor: 'warning.main' }}>
                     <Box display="flex" alignItems="center" gap={1} mb={0.5}>
                       <Typography variant="caption" color="warning.dark" fontWeight={700}>
                         HYBRID SLA · {bd.site?.site_code || 'site'}
@@ -1412,22 +1436,6 @@ export default function CaseDetail() {
       <Dialog open={reassignOpen} onClose={() => setReassignOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Reassign Case</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-          <Autocomplete
-            options={userOptions}
-            getOptionLabel={(u: any) => u.display_name || `${u.first_name} ${u.last_name}`}
-            value={userOptions.find((u: any) => u.id === newAssigneeId) || null}
-            onChange={(_, u) => setNewAssigneeId(u?.id || '')}
-            // Only treat genuine typing as a search term. MUI also fires this
-            // with reason 'reset' (full "First Last" display label) whenever
-            // `value` changes — e.g. right after picking someone from the list
-            // — and with reason 'clear' when the field is cleared. Feeding
-            // either of those into the search query used to re-query the
-            // backend for the full display name, which the server can't match
-            // against individual first_name/last_name/email/username columns,
-            // silently wiping the just-populated option list back to empty.
-            onInputChange={(_, v, reason) => { if (reason === 'input') setAssigneeSearch(v); }}
-            renderInput={(params) => <TextField {...params} label="Assignee" size="small" />}
-          />
           <FormControl size="small" fullWidth>
             <InputLabel>Team</InputLabel>
             <Select value={newTeamId} label="Team"
@@ -1444,9 +1452,26 @@ export default function CaseDetail() {
               ))}
             </Select>
           </FormControl>
+          <Autocomplete
+            options={userOptions}
+            getOptionLabel={(u: any) => u.display_name || `${u.first_name} ${u.last_name}`}
+            value={userOptions.find((u: any) => u.id === newAssigneeId) || null}
+            onChange={(_, u) => setNewAssigneeId(u?.id || '')}
+            // Only treat genuine typing as a search term. MUI also fires this
+            // with reason 'reset' (full "First Last" display label) whenever
+            // `value` changes — e.g. right after picking someone from the list
+            // — and with reason 'clear' when the field is cleared. Feeding
+            // either of those into the search query used to re-query the
+            // backend for the full display name, which the server can't match
+            // against individual first_name/last_name/email/username columns,
+            // silently wiping the just-populated option list back to empty.
+            onInputChange={(_, v, reason) => { if (reason === 'input') setAssigneeSearch(v); }}
+            renderInput={(params) => <TextField {...params} label={newTeamId ? 'Assignee (this team)' : 'Assignee (search everyone)'} size="small" />}
+          />
           <Typography variant="caption" color="text.secondary">
-            Leave the assignee empty to put the case in the team's queue (anyone on the team can claim it).
-            Pick a person to assign it directly.
+            {newTeamId
+              ? "Only this team's members are shown. Leave the assignee empty to put the case in the team's queue instead (anyone on the team can claim it)."
+              : 'Pick a team first to narrow the assignee list to its members, or search everyone directly.'}
           </Typography>
         </DialogContent>
         <DialogActions>

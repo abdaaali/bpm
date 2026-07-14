@@ -3,8 +3,9 @@ import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import {
   Box, Drawer, AppBar, Toolbar, Typography, IconButton, List, ListItem,
   ListItemButton, ListItemIcon, ListItemText, Divider, Badge, Avatar, Menu, MenuItem, Tooltip,
-  Collapse, Popover, TextField, InputAdornment, Button,
+  Collapse, Popover, TextField, InputAdornment, Button, ListSubheader, ListItemIcon as MenuItemIcon,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import MenuIcon from '@mui/icons-material/Menu';
 import SearchIcon from '@mui/icons-material/Search';
 import ExpandLess from '@mui/icons-material/ExpandLess';
@@ -42,19 +43,24 @@ import FactCheckIcon from '@mui/icons-material/FactCheck';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import AltRouteIcon from '@mui/icons-material/AltRoute';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import type { PaletteMode } from '@mui/material';
 import { useAuth } from '../auth/AuthContext';
 import { useAccess } from '../auth/useAccess';
 import ModuleNav from './ModuleNav';
 import EmptyState from './EmptyState';
+import { getInteractiveTints } from '../theme/theme';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { notifApi } from '../api/client';
 import { formatDistanceToNow } from 'date-fns';
 
-const DRAWER_WIDTH = 220;
+const DRAWER_WIDTH = 264;
 
 // Launcher-model navigation: a slim rail of top-level destinations. Functional
-// areas are opened from the Applications / Dashboards / Administration pages
-// (tile launchers) rather than nested sidebar sections.
+// areas are opened from the Home tile grid or this rail's own dropdown
+// sections (Dashboards, Administration, etc.) rather than a separate
+// "Applications" tile-launcher page.
 interface NavChild { label: string; path: string; perm?: string; }
 interface NavItem { label: string; icon: React.ReactNode; path: string; match: string[]; perm?: string; children?: NavChild[]; }
 
@@ -66,24 +72,38 @@ const NAV: NavItem[] = [
       { label: 'My Requests', path: '/workplace?tab=requests' },
       { label: 'Team Queue', path: '/workplace?tab=team' },
     ] },
-  { label: 'Dashboards', icon: <DashboardIcon />, path: '/dashboards', match: ['/dashboards', '/dashboard', '/reports', '/digest', '/rca'], perm: 'cases:read',
+  { label: 'Dashboards', icon: <DashboardIcon />, path: '/dashboards', match: ['/dashboards', '/dashboard', '/rca'], perm: 'cases:read',
     children: [
       { label: 'Operational Dashboard', path: '/dashboard' },
       { label: 'Telecom Operations', path: '/dashboard/operations' },
       { label: 'Process Performance', path: '/processes/analytics', perm: 'processes:read' },
-      { label: 'Report Generator', path: '/reports', perm: 'analytics:read' },
-      { label: 'Management Digest', path: '/digest', perm: 'analytics:read' },
       { label: 'Root Cause Analysis', path: '/rca', perm: 'rca:read' },
     ] },
-  { label: 'Administration', icon: <SettingsIcon />, path: '/admin', match: ['/admin', '/org', '/mdm', '/audit', '/approvals'], perm: 'org:read',
+  { label: 'Process Studio', icon: <AccountTreeIcon />, path: '/processes', match: ['/processes'], perm: 'processes:read',
+    children: [
+      { label: 'Studio', path: '/processes' },
+      { label: 'Process Monitor', path: '/processes/instances' },
+    ] },
+  { label: 'MDM', icon: <DnsIcon />, path: '/mdm', match: ['/mdm', '/admin/datahub'], perm: 'mdm:read',
+    children: [
+      { label: 'Master Data', path: '/mdm' },
+      { label: 'Operational DataHub', path: '/admin/datahub' },
+    ] },
+  { label: 'Integrations', icon: <HubIcon />, path: '/admin/connectors', match: ['/admin/connectors'], perm: 'connectors:manage' },
+  { label: 'Reports', icon: <BarChartIcon />, path: '/reports', match: ['/reports', '/digest'], perm: 'analytics:read',
+    children: [
+      { label: 'Report Generator', path: '/reports' },
+      // Stricter than the 'Reports' parent's analytics:read (which
+      // individual-contributor roles like IT Engineer also hold, for the
+      // Report Generator) — this is leadership-only governance reporting.
+      { label: 'Management Digest', path: '/digest', perm: 'notifications:manage' },
+    ] },
+  { label: 'Notifications & Templates', icon: <NotificationsIcon />, path: '/admin/notification-templates', match: ['/admin/notification-templates'], perm: 'notifications:manage' },
+  { label: 'Administration', icon: <SettingsIcon />, path: '/org', match: ['/org', '/admin/sla', '/audit', '/approvals'], perm: 'org:read',
     children: [
       { label: 'Organization', path: '/org' },
-      { label: 'Master Data', path: '/mdm', perm: 'mdm:read' },
       { label: 'SLA Policies', path: '/admin/sla' },
-      { label: 'Integrations', path: '/admin/connectors', perm: 'connectors:manage' },
-      { label: 'Notification Templates', path: '/admin/notification-templates', perm: 'notifications:manage' },
       { label: 'Audit & Compliance', path: '/audit', perm: 'audit:read' },
-      { label: 'Operational DataHub', path: '/admin/datahub', perm: 'mdm:read' },
       { label: 'Approval Policies', path: '/approvals/policies', perm: 'approvals:read' },
       { label: 'Approval Instances', path: '/approvals/instances', perm: 'approvals:read' },
     ] },
@@ -95,19 +115,23 @@ const NAV: NavItem[] = [
       { label: 'Submission Review', path: '/contractors/review' },
       { label: 'Performance & KPIs', path: '/contractors/dashboard' },
     ] },
-  { label: 'Process Studio', icon: <AccountTreeIcon />, path: '/processes', match: ['/processes'], perm: 'processes:read',
-    children: [
-      { label: 'Studio', path: '/processes' },
-      { label: 'Process Monitor', path: '/processes/instances' },
-      { label: 'Process Performance', path: '/processes/analytics' },
-    ] },
 ];
 
 const COLLAPSE_KEY = 'bpm_nav_collapsed_sections';
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children, colorMode, onToggleColorMode }: {
+  children: React.ReactNode;
+  colorMode: PaletteMode;
+  onToggleColorMode: () => void;
+}) {
+  // Sidebar hover/selected tints were previously fixed light-mode rgba
+  // literals painted directly against the Drawer paper, which goes from
+  // white to navy in dark mode — using the same theme-derived tints as
+  // theme.ts's own component overrides keeps both in sync.
+  const { hoverTintStrong, selectedTint } = getInteractiveTints(colorMode);
   const [open, setOpen] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [createAnchor, setCreateAnchor] = useState<null | HTMLElement>(null);
   const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null);
   const [search, setSearch] = useState('');
   const qc = useQueryClient();
@@ -132,23 +156,36 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { can } = useAccess();
 
-  const toggleSection = (label: string) => {
-    setExpanded(prev => {
-      const next = { ...prev, [label]: !prev[label] };
-      try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      return next;
-    });
+  const toggleSection = (label: string, isOpen: boolean) => {
+    // Keep an explicit `false` for a collapsed active section. Without it,
+    // `expanded[label] ?? active` immediately reopens the section.
+    const next = isOpen ? { [label]: false } : { [label]: true };
+    setExpanded(next);
+    try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  };
+
+  const closeSections = () => {
+    setExpanded({});
+    try { localStorage.setItem(COLLAPSE_KEY, '{}'); } catch { /* ignore */ }
   };
 
   const { data: notifCount } = useQuery('notifCount', () => notifApi.count(), {
     refetchInterval: 30_000, enabled: !!user,
   });
 
+  const createItems = [
+    { label: 'New Case', icon: <BugReportIcon fontSize="small" />, path: '/cases/new' },
+    { label: 'Service Request', icon: <StoreIcon fontSize="small" />, path: '/catalog' },
+    ...(can('processes:write') ? [{ label: 'New Process', icon: <AccountTreeIcon fontSize="small" />, path: '/processes' }] : []),
+  ];
+
   // A top-level nav item is active when the current path is the item's path or
   // starts with any of its `match` prefixes (so working inside a functional area
   // keeps "Applications" highlighted).
-  const isSelected = (item: NavItem) =>
-    item.match.some(m => location.pathname === m || location.pathname.startsWith(m + '/') || location.pathname.startsWith(m + '?') || location.pathname === m);
+  const isSelected = (item: NavItem) => {
+    if (location.pathname === '/processes/analytics') return item.label === 'Dashboards';
+    return item.match.some(m => location.pathname === m || location.pathname.startsWith(m + '/') || location.pathname.startsWith(m + '?'));
+  };
 
   const isChildActive = (c: NavChild) => {
     const [p, q] = c.path.split('?');
@@ -159,11 +196,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <Box sx={{ display: 'flex' }}>
       <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
-        <Toolbar>
+        <Toolbar sx={{ minHeight: '68px !important', gap: 1.5 }}>
           <IconButton color="inherit" edge="start" onClick={() => setOpen(!open)} sx={{ mr: 2 }}>
             <MenuIcon />
           </IconButton>
-          <Box component="img" src="/favicon.svg" alt="" aria-hidden="true" sx={{ width: 28, height: 28, mr: 1 }} />
+          <Box component="img" src="/bpm-logo-official.png" alt="BPM Portal"
+            sx={{ width: 36, height: 36, mr: 1, objectFit: 'contain', flexShrink: 0 }} />
           <Typography variant="h6" sx={{ fontWeight: 700, mr: 3 }}>
             BPM Portal
           </Typography>
@@ -183,6 +221,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: 'inherit' }} fontSize="small" /></InputAdornment> }}
           />
           <Box sx={{ flexGrow: 1 }} />
+          <Tooltip title={`Switch to ${colorMode === 'light' ? 'dark' : 'light'} mode`}>
+            <IconButton color="inherit" onClick={onToggleColorMode} aria-label={`Switch to ${colorMode === 'light' ? 'dark' : 'light'} mode`}>
+              {colorMode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Notifications">
             <IconButton color="inherit" onClick={e => setNotifAnchor(e.currentTarget)}>
               <Badge badgeContent={notifCount?.count || 0} color="error">
@@ -195,7 +238,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}
           >
             <Box sx={{ width: 360, maxHeight: 440, overflow: 'auto' }}>
-              <Box display="flex" alignItems="center" justifyContent="space-between" px={2} py={1.5} sx={{ bgcolor: 'grey.50' }}>
+              <Box display="flex" alignItems="center" justifyContent="space-between" px={2} py={1.5} sx={{ bgcolor: 'action.hover' }}>
                 <Typography variant="subtitle2" fontWeight={700}>Notifications</Typography>
                 <Button size="small" onClick={() => markAllRead.mutate()} disabled={markAllRead.isLoading}>Mark all read</Button>
               </Box>
@@ -250,7 +293,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <Toolbar />
         <Box sx={{ overflow: 'auto', py: 1 }}>
           <List>
-            {NAV.filter(item => can(item.perm)).map(item => {
+            {NAV
+              // A section is visible if the user holds its own perm, OR holds
+              // the perm for at least one child — otherwise a user with e.g.
+              // only mdm:read (not org:read) would lose all sidebar access to
+              // Master Data/DataHub even though they're individually permitted.
+              .filter(item => can(item.perm) || (item.children || []).some(c => can(c.perm)))
+              .map(item => {
               const active = isSelected(item);
               const children = (item.children || []).filter(c => can(c.perm));
               const hasChildren = children.length > 0;
@@ -262,12 +311,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       selected={active}
                       component={RouterLink}
                       to={item.path}
-                      onClick={() => { if (hasChildren) setExpanded(prev => ({ ...prev, [item.label]: true })); }}
+                      onClick={() => hasChildren ? toggleSection(item.label, isOpen) : closeSections()}
                       sx={{
                         borderRadius: 2, mx: 1, my: 0.25, py: 1.25, flex: 1, position: 'relative', pl: active ? 2.25 : 2,
-                        '&:hover': { bgcolor: active ? 'rgba(40,86,201,0.14)' : 'rgba(15,23,42,0.045)' },
+                        '&:hover': { bgcolor: active ? selectedTint : 'action.hover' },
                         '&.Mui-selected': {
-                          bgcolor: 'rgba(40,86,201,0.1)', color: 'primary.main',
+                          bgcolor: selectedTint, color: 'primary.main',
                           '& .MuiListItemIcon-root': { color: 'primary.main' },
                           '&::before': {
                             content: '""', position: 'absolute', left: 0, top: 8, bottom: 8, width: 3,
@@ -282,7 +331,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: 15, fontWeight: active ? 700 : 600 }} />
                     </ListItemButton>
                     {hasChildren && (
-                      <IconButton size="small" onClick={() => toggleSection(item.label)} sx={{ mr: 1 }}
+                      <IconButton size="small" onClick={() => toggleSection(item.label, isOpen)} sx={{ mr: 1 }}
                         aria-label={isOpen ? `Collapse ${item.label}` : `Expand ${item.label}`}>
                         {isOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                       </IconButton>
@@ -303,7 +352,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                             <ListItemButton key={c.path} component={RouterLink} to={to} selected={childActive}
                               sx={{
                                 pl: 6.5, py: 0.75, borderRadius: 2, mx: 1, my: 0.15,
-                                '&.Mui-selected': { bgcolor: 'rgba(40,86,201,0.08)', color: 'primary.main' },
+                                '&.Mui-selected': { bgcolor: hoverTintStrong, color: 'primary.main' },
                               }}>
                               <ListItemText primary={c.label} primaryTypographyProps={{ fontSize: 13.5, fontWeight: childActive ? 700 : 500 }} />
                             </ListItemButton>

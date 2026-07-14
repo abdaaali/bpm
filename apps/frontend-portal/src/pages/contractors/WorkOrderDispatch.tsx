@@ -159,7 +159,7 @@ export default function WorkOrderDispatch({
             />
           )}
           {caseTitle && (
-            <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'grey.50' }}>
+            <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'action.hover' }}>
               <Typography variant="caption" color="text.secondary">Dispatching case:</Typography>
               <Typography variant="body2" fontWeight={600}>{caseTitle}</Typography>
             </Paper>
