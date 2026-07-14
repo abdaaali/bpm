@@ -1,0 +1,11 @@
+-- Seed: QAST SLA Policies — intentionally empty.
+--
+-- Migration 034_sla_config.sql created sla_targets/sla_class_factors as an
+-- OVERRIDE mechanism: "No seed is needed — the API returns code defaults
+-- merged with overrides." The code defaults (TARGETS / SLA_CLASS_FACTOR in
+-- services/case-service/src/case/sla.ts) are already the real starting SLA
+-- matrix for every tenant, QAST included, with zero rows required here.
+-- Inserting rows in this file would create OVERRIDES that diverge from those
+-- tuned defaults, not "seed" them — so this file stays empty by design.
+-- Real per-type/priority adjustments, if ever needed, go through
+-- Administration > SLA Policies after go-live.

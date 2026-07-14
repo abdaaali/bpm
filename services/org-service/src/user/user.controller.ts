@@ -12,7 +12,7 @@ export class UserController {
     // Tenant comes ONLY from the gateway-verified header — never from caller
     // body/query, which would allow cross-tenant reads/writes.
     const tid = req.headers['x-tenant-id'] || 'a0000000-0000-0000-0000-000000000001';
-    return this.svc.findAll(tid, { page: q.page ? +q.page : 1, pageSize: q.pageSize ? +q.pageSize : 20, search: q.search, role: q.role });
+    return this.svc.findAll(tid, { page: q.page ? +q.page : 1, pageSize: q.pageSize ? +q.pageSize : 20, search: q.search, role: q.role, orgUnitId: q.orgUnitId });
   }
 
   @Post()
@@ -53,10 +53,22 @@ export class UserController {
     return this.svc.removeRole(id, roleId, tid);
   }
 
+  @Post(':id/force-password-reset')
+  forcePasswordReset(@Req() req: any, @Param('id') id: string) {
+    const tid = req.headers['x-tenant-id'] || 'a0000000-0000-0000-0000-000000000001';
+    return this.svc.forcePasswordReset(id, tid, req.headers['x-user-id']);
+  }
+
   @Post(':id/assignments')
   assignToOrgUnit(@Req() req: any, @Param('id') id: string, @Body() body: any) {
     const tid = req.headers['x-tenant-id'] || 'a0000000-0000-0000-0000-000000000001';
     return this.svc.assignToOrgUnit(id, tid, body);
+  }
+
+  @Delete(':id/assignments/:assignmentId')
+  removeAssignment(@Req() req: any, @Param('id') id: string, @Param('assignmentId') assignmentId: string) {
+    const tid = req.headers['x-tenant-id'] || 'a0000000-0000-0000-0000-000000000001';
+    return this.svc.removeAssignment(id, assignmentId, tid, req.headers['x-user-id']);
   }
 
   @Get(':id/managers')

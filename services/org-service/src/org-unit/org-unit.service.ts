@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { AuditService } from '../audit/audit.service';
 import { KafkaProducerService } from '../kafka/kafka-producer.service';
@@ -71,15 +71,81 @@ export class OrgUnitService {
 
   async update(id: string, tenantId: string, dto: any, actorId?: string) {
     const existing = await this.findById(id, tenantId);
-    const r = await this.db.query(
-      `UPDATE org_units SET name = COALESCE($1,name), code = COALESCE($2,code),
-       metadata = COALESCE($3,metadata), active = COALESCE($4,active), updated_at = NOW()
-       WHERE id = $5 AND tenant_id = $6 RETURNING *`,
-      [dto.name, dto.code, dto.metadata ? JSON.stringify(dto.metadata) : null, dto.active, id, tenantId],
-    );
-    const updated = r.rows[0];
+
+    // Re-parenting: undefined = don't touch parent; null/'' = move to root; a
+    // uuid = move under that unit. Only recompute level/path when it's
+    // actually changing.
+    let level = existing.level;
+    let path = existing.path;
+    let parentId = existing.parent_id;
+    if (dto.parentId !== undefined && (dto.parentId || null) !== existing.parent_id) {
+      parentId = dto.parentId || null;
+      if (parentId === id) {
+        throw new BadRequestException('A unit cannot be its own parent');
+      }
+      if (parentId) {
+        const newParent = await this.findById(parentId, tenantId);
+        // Cycle check: walk up from the proposed new parent — if we ever reach
+        // `id`, the target is `id` itself or one of its own descendants.
+        let cursor: any = newParent;
+        const visited = new Set<string>();
+        while (cursor) {
+          if (cursor.id === id) {
+            throw new BadRequestException('Cannot move a unit under its own descendant');
+          }
+          if (visited.has(cursor.id)) break; // defensive: shouldn't happen, avoids infinite loop
+          visited.add(cursor.id);
+          if (!cursor.parent_id) break;
+          cursor = await this.findById(cursor.parent_id, tenantId);
+        }
+        level = newParent.level + 1;
+        path = `${newParent.path}/${id}`;
+      } else {
+        level = 0;
+        path = `/${id}`;
+      }
+    }
+
+    const updated = await this.db.withTransaction(async (cx) => {
+      const r = await cx.query(
+        `UPDATE org_units SET name = COALESCE($1,name), code = COALESCE($2,code),
+         metadata = COALESCE($3,metadata), active = COALESCE($4,active),
+         parent_id = $5, level = $6, path = $7, updated_at = NOW()
+         WHERE id = $8 AND tenant_id = $9 RETURNING *`,
+        [dto.name, dto.code, dto.metadata ? JSON.stringify(dto.metadata) : null, dto.active,
+         parentId, level, path, id, tenantId],
+      );
+      const row = r.rows[0];
+      if (level !== existing.level || path !== existing.path) {
+        await this.cascadeRecompute(cx, tenantId, id, level, path);
+      }
+      return row;
+    });
+
     await this.audit.log({ tenantId, entityType: 'org_unit', entityId: id, action: 'UPDATE', actorId, beforeState: existing, afterState: updated });
     return updated;
+  }
+
+  // Recomputes level/path for every descendant after a re-parent, iterative
+  // BFS over parent_id (one query per fan-out level) — mirrors the per-level
+  // query style getManagerChain already uses for hierarchy walks.
+  private async cascadeRecompute(cx: any, tenantId: string, rootId: string, rootLevel: number, rootPath: string) {
+    let frontier = [{ id: rootId, level: rootLevel, path: rootPath }];
+    while (frontier.length) {
+      const parent = frontier.shift()!;
+      const children = await cx.query(
+        'SELECT id FROM org_units WHERE parent_id = $1 AND tenant_id = $2',
+        [parent.id, tenantId],
+      );
+      const next: { id: string; level: number; path: string }[] = [];
+      for (const child of children.rows) {
+        const newLevel = parent.level + 1;
+        const newPath = `${parent.path}/${child.id}`;
+        await cx.query('UPDATE org_units SET level = $1, path = $2, updated_at = NOW() WHERE id = $3', [newLevel, newPath, child.id]);
+        next.push({ id: child.id, level: newLevel, path: newPath });
+      }
+      frontier.push(...next);
+    }
   }
 
   async delete(id: string, tenantId: string, actorId?: string) {

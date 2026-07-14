@@ -52,7 +52,11 @@ export class OrgController {
   @RequirePermission('org:manage')
   @Delete('users/:id/roles/:roleId') removeRole(@Req() req: any, @Param('id') id: string, @Param('roleId') roleId: string) { return this.proxy.forward(ORG_URL(), 'DELETE', `/users/${id}/roles/${roleId}`, undefined, hdrs(req)); }
   @RequirePermission('org:manage')
+  @Post('users/:id/force-password-reset') forcePasswordReset(@Req() req: any, @Param('id') id: string) { return this.proxy.forward(ORG_URL(), 'POST', `/users/${id}/force-password-reset`, undefined, hdrs(req)); }
+  @RequirePermission('org:manage')
   @Post('users/:id/assignments') assignOrgUnit(@Req() req: any, @Param('id') id: string, @Body() b: any) { return this.proxy.forward(ORG_URL(), 'POST', `/users/${id}/assignments`, b, hdrs(req)); }
+  @RequirePermission('org:manage')
+  @Delete('users/:id/assignments/:assignmentId') removeAssignment(@Req() req: any, @Param('id') id: string, @Param('assignmentId') assignmentId: string) { return this.proxy.forward(ORG_URL(), 'DELETE', `/users/${id}/assignments/${assignmentId}`, undefined, hdrs(req)); }
   @Get('users/:id/managers') getUserManagers(@Req() req: any, @Param('id') id: string) { return this.proxy.forward(ORG_URL(), 'GET', `/users/${id}/managers`, undefined, hdrs(req)); }
   @Get('users/:id/hierarchy') getUserHierarchy(@Req() req: any, @Param('id') id: string) { return this.proxy.forward(ORG_URL(), 'GET', `/users/${id}/hierarchy`, undefined, hdrs(req)); }
 

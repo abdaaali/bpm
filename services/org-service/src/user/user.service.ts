@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { AuditService } from '../audit/audit.service';
 import { KeycloakAdminService } from '../keycloak/keycloak-admin.service';
@@ -13,14 +13,18 @@ export class UserService {
 
   private defaultTenant = 'a0000000-0000-0000-0000-000000000001';
 
-  async findAll(tenantId: string, filters: { page?: number; pageSize?: number; search?: string; role?: string }) {
-    const { page = 1, pageSize = 20, search, role } = filters;
+  async findAll(tenantId: string, filters: { page?: number; pageSize?: number; search?: string; role?: string; orgUnitId?: string }) {
+    const { page = 1, pageSize = 20, search, role, orgUnitId } = filters;
     const { limit, offset } = this.db.paginate(page, pageSize);
     const params: any[] = [tenantId];
     const conds: string[] = ['u.tenant_id = $1'];
 
     if (search) { params.push(`%${search}%`); conds.push(`(u.email ILIKE $${params.length} OR u.first_name ILIKE $${params.length} OR u.last_name ILIKE $${params.length} OR u.username ILIKE $${params.length})`); }
     if (role) { params.push(role); conds.push(`EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE ur.user_id=u.id AND r.key=$${params.length})`); }
+    // ANY assignment, not just primary — matches how case-service scopes team
+    // membership for My Work / claim (case.service.ts buildRoleScope), so
+    // "who's on this team" here agrees with "who can see this team's queue" there.
+    if (orgUnitId) { params.push(orgUnitId); conds.push(`EXISTS (SELECT 1 FROM user_org_assignments uoa WHERE uoa.user_id=u.id AND uoa.org_unit_id=$${params.length})`); }
 
     const where = conds.join(' AND ');
     const cnt = await this.db.query(`SELECT COUNT(*) FROM users u WHERE ${where}`, params);
@@ -240,6 +244,17 @@ export class UserService {
 
   async assignToOrgUnit(userId: string, tenantId: string, dto: any,
                         executor: { query: (text: string, params?: any[]) => Promise<any> } = this.db) {
+    // Reject a duplicate (same org unit + position) rather than silently
+    // double-counting this person in that unit's queue/headcount. Safe for the
+    // primary-slot callers in create()/update() too, since update() always
+    // clears existing primary rows before re-inserting one.
+    const dup = await executor.query(
+      'SELECT id FROM user_org_assignments WHERE user_id=$1 AND tenant_id=$2 AND org_unit_id=$3 AND position_id IS NOT DISTINCT FROM $4',
+      [userId, tenantId, dto.orgUnitId, dto.positionId || null],
+    );
+    if (dup.rows[0]) {
+      throw new BadRequestException('User is already assigned to this org unit with this position');
+    }
     if (dto.isPrimary) {
       await executor.query('UPDATE user_org_assignments SET is_primary = false WHERE user_id = $1 AND tenant_id = $2', [userId, tenantId]);
     }
@@ -249,6 +264,30 @@ export class UserService {
       [userId, tenantId, dto.orgUnitId, dto.positionId || null, dto.isPrimary !== false],
     );
     return r.rows[0];
+  }
+
+  async forcePasswordReset(id: string, tenantId: string, actorId?: string) {
+    const existing = await this.findById(id, tenantId);
+    if (!existing.keycloak_id) {
+      throw new BadRequestException('This user has no linked Keycloak account yet');
+    }
+    await this.kc.requirePasswordUpdate(existing.keycloak_id);
+    await this.audit.log({ tenantId, entityType: 'user', entityId: id, action: 'FORCE_PASSWORD_RESET', actorId });
+    return { success: true };
+  }
+
+  async removeAssignment(userId: string, assignmentId: string, tenantId: string, actorId?: string) {
+    const existing = await this.db.query(
+      'SELECT * FROM user_org_assignments WHERE id = $1 AND user_id = $2 AND tenant_id = $3',
+      [assignmentId, userId, tenantId],
+    );
+    if (!existing.rows[0]) throw new NotFoundException(`Assignment ${assignmentId} not found`);
+    if (existing.rows[0].is_primary) {
+      throw new BadRequestException("Cannot remove the primary assignment here — change the user's Department field instead");
+    }
+    await this.db.query('DELETE FROM user_org_assignments WHERE id = $1', [assignmentId]);
+    await this.audit.log({ tenantId, entityType: 'user_org_assignment', entityId: assignmentId, action: 'DELETE', actorId, beforeState: existing.rows[0] });
+    return { success: true };
   }
 
   async getManagers(userId: string, tenantId: string): Promise<any[]> {

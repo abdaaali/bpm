@@ -48,7 +48,9 @@ export class KeycloakAdminService {
         lastName: dto.lastName,
         enabled: true,
         emailVerified: true,
-        credentials: [{ type: 'password', value: dto.password, temporary: false }],
+        // temporary: true — the account holder must set their own password on
+        // first login rather than keep whatever was generated for them.
+        credentials: [{ type: 'password', value: dto.password, temporary: true }],
       }),
     });
     if (!res.ok) {
@@ -71,6 +73,9 @@ export class KeycloakAdminService {
     if (!res.ok) this.logger.warn(`KC updateUser ${keycloakId} failed: ${res.status}`);
   }
 
+  // Admin-set password (e.g. from the Edit User dialog). temporary: true so the
+  // value the admin typed is never a long-term shared secret — the user must
+  // change it themselves at their next login.
   async resetPassword(keycloakId: string, password: string) {
     const token = await this.getAdminToken();
     await fetch(
@@ -78,9 +83,23 @@ export class KeycloakAdminService {
       {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'password', value: password, temporary: false }),
+        body: JSON.stringify({ type: 'password', value: password, temporary: true }),
       },
     );
+  }
+
+  // Flags the account for a mandatory password change at next login WITHOUT
+  // touching their current password (unlike resetPassword, which sets a new
+  // value immediately) — for "force reset" from the admin UI when you don't
+  // want to hand them a value at all.
+  async requirePasswordUpdate(keycloakId: string) {
+    const token = await this.getAdminToken();
+    const res = await fetch(`${this.baseUrl}/admin/realms/${this.realm}/users/${keycloakId}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requiredActions: ['UPDATE_PASSWORD'] }),
+    });
+    if (!res.ok) this.logger.warn(`KC requirePasswordUpdate ${keycloakId} failed: ${res.status}`);
   }
 
   async assignRealmRole(keycloakId: string, roleName: string) {

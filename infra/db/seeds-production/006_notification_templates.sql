@@ -1,0 +1,13 @@
+-- Seed: QAST Notification Templates — intentionally empty.
+--
+-- Migrations 023_notification_templates.sql, 024_major_incident.sql,
+-- 025_sla_at_risk.sql and 029_vendor_escalation.sql already seed the real,
+-- currently-active set of branded templates (case created/assigned/resolved/
+-- SLA breach/at-risk, approval requested/decision, task assigned/reassigned/
+-- SLA breach, major incident declared/resolved, vendor escalation
+-- raised/resolved) against this same tenant id, idempotently
+-- (ON CONFLICT(tenant_id, slug) DO UPDATE), and they always run regardless of
+-- APP_ENV. seeds/001_core_data.sql's 7 templates are an explicitly superseded
+-- fallback copy ("keep the canonical migration copies and skip any that
+-- already exist") — not the real set, so they are not reproduced here.
+-- This file stays empty by design; nothing left to seed.

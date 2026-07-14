@@ -1,0 +1,15 @@
+-- Seed: QAST MDM / Master Data — intentionally empty.
+--
+-- Real infrastructure/asset/vendor/workforce inventory gets entered later via
+-- Admin > Master Data, once known.
+--
+-- Note: migrations 021_datahub_sites_hybrid_sla.sql and
+-- 028_datahub_domains.sql unconditionally insert FICTITIOUS reference rows
+-- (example sites, vendors, workforce, spares) against this same tenant id —
+-- they run regardless of APP_ENV, so a fresh QAST install will contain them
+-- until removed. This is a known, accepted gap (user decision): Admin >
+-- Master Data (DataHub.tsx) already has working per-row Delete buttons for
+-- every domain (sites, vendors, routes, calendars, workforce, spares), wired
+-- to real DELETE endpoints — clearing the fake rows is a few clicks post-go-
+-- live, not a blocker. Not scripted here since it would mean editing already-
+-- numbered migration history, which is out of scope for a seed-data pass.
