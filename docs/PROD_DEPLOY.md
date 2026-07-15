@@ -180,9 +180,22 @@ Record RPO (≤ 6 h with current cadence) and RTO from the drill.
 ---
 
 ## 9. Rollback
-See `CUTOVER.md`. In short: `docker compose … down`, restore the last good DB
-dump, redeploy the previous image tag. Keycloak realm + Postgres data persist in
-named volumes; a DB restore reverts app + auth state together.
+See `CUTOVER.md`. **Never use `docker compose down` (with or without `-v`) as
+part of rollback** — it is unnecessary (containers can be rebuilt/recreated
+in place) and `-v` specifically would delete the named volumes holding all
+production data. The safe sequence, matching `docs/DEPLOY.md` §Rollback:
+
+```bash
+git checkout <previous-good-commit-or-tag>
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+If a forward migration is implicated (code rollback alone can't undo a
+schema change), restore the pre-deploy database backup instead — see
+`infra/db/BACKUP.md` — rather than any destructive Compose command. Keycloak
+realm + Postgres data persist in the named volumes across this whole
+sequence; nothing above removes them.
 
 ---
 

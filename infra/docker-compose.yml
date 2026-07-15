@@ -12,6 +12,7 @@ volumes:
   loki_data:
   promtail_positions:
   db_backups:
+  minio_backups:
 
 # Default container log rotation (json-file). Without this Docker keeps an
 # unbounded *-json.log per container and eventually fills the disk. Applied to
@@ -727,6 +728,11 @@ services:
       PGUSER: bpm
       PGPASSWORD: ${POSTGRES_PASSWORD}
       PGDATABASE: bpm_db
+      # Also backs up the Keycloak Postgres store when present (production
+      # overlay only — see backup.sh). Matches KC_DB_NAME used by keycloak
+      # itself in docker-compose.prod.yml; harmless if unset (defaults to
+      # "keycloak") or if that database doesn't exist (dev-file mode locally).
+      KC_DB_NAME: ${KC_DB_NAME:-keycloak}
       BACKUP_INTERVAL_SECONDS: "21600"   # every 6h
       BACKUP_KEEP: "14"
     volumes:
@@ -735,4 +741,28 @@ services:
     entrypoint: ["/bin/sh", "/backup.sh"]
     depends_on:
       postgres:
+        condition: service_healthy
+
+  # Mirrors the bpm-attachments bucket to a separate volume, independent of
+  # minio_data — a database backup alone does not include attachment bytes.
+  # See infra/db/minio-backup.sh.
+  minio-backup:
+    image: minio/mc:latest
+    container_name: bpm-minio-backup
+    restart: unless-stopped
+    logging: *default-logging
+    networks: [bpm-net]
+    environment:
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: bpm-attachments
+      MINIO_BACKUP_INTERVAL_SECONDS: "21600"   # every 6h, matches db-backup
+    volumes:
+      - ./db/minio-backup.sh:/minio-backup.sh:ro
+      - minio_backups:/backups
+    entrypoint: ["/bin/sh", "/minio-backup.sh"]
+    depends_on:
+      minio:
         condition: service_healthy
