@@ -9,7 +9,12 @@ import { ProxyService } from '../proxy/proxy.service';
 const APPROVAL_URL = () => process.env.APPROVAL_SERVICE_URL || 'http://approval-service:3002';
 
 function hdrs(req: any) {
-  return { Authorization: req.headers['authorization'] || '', 'X-Tenant-ID': req.tenantId || '', 'X-User-ID': req.user?.sub || '' };
+  return {
+    Authorization: req.headers['authorization'] || '',
+    'X-Tenant-ID': req.tenantId || '',
+    'X-User-ID': req.user?.sub || '',
+    'X-User-Roles': (req.user?.roles || []).join(','),
+  };
 }
 
 @ApiTags('Approvals')
@@ -35,7 +40,12 @@ export class ApprovalController {
   @Post('instances/:id/steps/:stepId/approve') @RequirePermission('approvals:decide') approve(@Req() req: any, @Param('id') id: string, @Param('stepId') sid: string, @Body() b: any) { return this.proxy.forward(APPROVAL_URL(), 'POST', `/instances/${id}/steps/${sid}/approve`, b, hdrs(req)); }
   @Post('instances/:id/steps/:stepId/reject') @RequirePermission('approvals:decide') reject(@Req() req: any, @Param('id') id: string, @Param('stepId') sid: string, @Body() b: any) { return this.proxy.forward(APPROVAL_URL(), 'POST', `/instances/${id}/steps/${sid}/reject`, b, hdrs(req)); }
 
-  @Post('delegations') @RequirePermission('approvals:read') createDelegation(@Req() req: any, @Body() b: any) { return this.proxy.forward(APPROVAL_URL(), 'POST', '/delegations', b, hdrs(req)); }
+  // Baseline gate is approvals:decide (real decision authority), not approvals:read —
+  // delegation grants away decision authority, so read-only roles must not reach this
+  // route at all. Fine-grained "own delegation vs. on someone else's behalf" is enforced
+  // in approval-service's DelegationService (needs the delegator's actual identity, which
+  // the gateway doesn't resolve).
+  @Post('delegations') @RequirePermission('approvals:decide') createDelegation(@Req() req: any, @Body() b: any) { return this.proxy.forward(APPROVAL_URL(), 'POST', '/delegations', b, hdrs(req)); }
   @Get('delegations') @RequirePermission('approvals:read') getDelegations(@Req() req: any, @Query() q: any) { return this.proxy.forward(APPROVAL_URL(), 'GET', '/delegations', undefined, hdrs(req), q); }
-  @Put('delegations/:id') @RequirePermission('approvals:read') updateDelegation(@Req() req: any, @Param('id') id: string, @Body() b: any) { return this.proxy.forward(APPROVAL_URL(), 'PUT', `/delegations/${id}`, b, hdrs(req)); }
+  @Put('delegations/:id') @RequirePermission('approvals:decide') updateDelegation(@Req() req: any, @Param('id') id: string, @Body() b: any) { return this.proxy.forward(APPROVAL_URL(), 'PUT', `/delegations/${id}`, b, hdrs(req)); }
 }

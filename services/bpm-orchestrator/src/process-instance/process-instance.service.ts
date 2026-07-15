@@ -41,8 +41,14 @@ export class ProcessInstanceService {
   }
 
   async findOne(tenantId: string, id: string) {
+    // pd.version as definition_version: process_instances has no version column of its
+    // own (a running instance is pinned to its definition row, not a copy of the
+    // version number), so the version shown for an instance must come from the joined
+    // definition — without this, the frontend's version chip has nothing real to read
+    // and silently falls back to a hardcoded "v1" for every instance regardless of the
+    // definition version it's actually running.
     const r = await this.db.query(
-      `SELECT pi.*, pd.name as definition_name, pd.bpmn_xml
+      `SELECT pi.*, pd.name as definition_name, pd.version as definition_version, pd.bpmn_xml
        FROM process_instances pi JOIN process_definitions pd ON pd.id=pi.definition_id
        WHERE pi.id=$1 AND pi.tenant_id=$2`,
       [id, tenantId],

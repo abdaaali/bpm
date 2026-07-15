@@ -66,7 +66,7 @@ export class CaseController {
 
   @Post()
   create(@Headers() h: Record<string, string>, @Body() dto: any) {
-    return this.svc.create(this.tenant(h), dto, this.actor(h));
+    return this.svc.create(this.tenant(h), dto, this.actor(h), this.roles(h));
   }
 
   @Put(':id')

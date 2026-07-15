@@ -334,7 +334,7 @@ export default function ProcessInstanceDetail() {
           backLabel="Back to Process Monitor"
           title={inst.definition_name}
           chips={<>
-            <Chip label={`v${inst.version || 1}`} size="small" />
+            <Chip label={`v${inst.definition_version || 1}`} size="small" />
             <Chip label={inst.status} size="small" color={STATUS_COLORS[inst.status] || 'default'} />
           </>}
           actions={<>

@@ -13,10 +13,12 @@ export class DelegationController {
   }
   @Post() create(@Req() req: any, @Body() body: any) {
     const tid = req.headers['x-tenant-id'] || 'a0000000-0000-0000-0000-000000000001';
-    return this.svc.create(tid, body, req.headers['x-user-id']);
+    const roles = (req.headers['x-user-roles'] || '').split(',').filter(Boolean);
+    return this.svc.create(tid, body, req.headers['x-user-id'], roles);
   }
   @Put(':id') deactivate(@Req() req: any, @Param('id') id: string) {
     const tid = req.headers['x-tenant-id'] || 'a0000000-0000-0000-0000-000000000001';
-    return this.svc.deactivate(id, tid, req.headers['x-user-id']);
+    const roles = (req.headers['x-user-roles'] || '').split(',').filter(Boolean);
+    return this.svc.deactivate(id, tid, req.headers['x-user-id'], roles);
   }
 }

@@ -9,7 +9,7 @@ export class SubmissionsController {
 
   @Get(':assignmentId')
   findByAssignment(@Param('assignmentId') assignmentId: string, @Req() req: any) {
-    const { tenant_id } = req.user;
-    return this.svc.findByAssignment(assignmentId, tenant_id);
+    const { tenant_id, company_id } = req.user;
+    return this.svc.findByAssignment(assignmentId, company_id, tenant_id);
   }
 }

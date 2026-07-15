@@ -97,6 +97,37 @@ export class CaseService {
   }
 
   /**
+   * Validates a creation-time assignment before it's ever written: the target user
+   * exists and is active, the target team exists and is active, and — when both are
+   * given — the user actually belongs to that team. Throws BadRequestException (400,
+   * not 403 — the caller was authorized to assign, the *target* they chose is invalid)
+   * on any failure.
+   */
+  private async validateAssignmentEligibility(tenantId: string, assigneeId?: string, assignedTeamId?: string) {
+    if (assigneeId) {
+      const u = await this.db.query(`SELECT id, active FROM users WHERE id=$1 AND tenant_id=$2`, [assigneeId, tenantId]);
+      if (!u.rows[0]) throw new BadRequestException('Selected assignee was not found.');
+      if (!u.rows[0].active) throw new BadRequestException('Selected assignee is not active.');
+    }
+    if (assignedTeamId) {
+      const t = await this.db.query(`SELECT id, active FROM org_units WHERE id=$1 AND tenant_id=$2`, [assignedTeamId, tenantId]);
+      if (!t.rows[0]) throw new BadRequestException('Selected team was not found.');
+      if (!t.rows[0].active) throw new BadRequestException('Selected team is not active.');
+    }
+    if (assigneeId && assignedTeamId) {
+      const m = await this.db.query(
+        `SELECT 1 FROM user_org_assignments WHERE user_id=$1 AND org_unit_id=$2
+           AND (effective_to IS NULL OR effective_to >= CURRENT_DATE) LIMIT 1`,
+        [assigneeId, assignedTeamId],
+      );
+      if (!m.rows[0]) throw new BadRequestException('Selected assignee does not belong to the selected team.');
+    }
+    // Per-case-type/process-type assignment eligibility beyond team membership has no
+    // supporting data model today (no role/case-type eligibility mapping exists) — not
+    // enforced here. Flagged in the audit report as needing a product decision.
+  }
+
+  /**
    * Role-based visibility scope for cases:read. Returns null for roles with
    * full tenant visibility (no extra filter needed). Returns a SQL fragment
    * (using the given 1-based placeholder index) plus the bound value for
@@ -292,7 +323,21 @@ export class CaseService {
     return site;
   }
 
-  async create(tenantId: string, dto: any, actorId?: string) {
+  // Roles that may set assignee_id/assigned_team_id at case-creation time — matches
+  // whichever roles hold cases:assign in the permission seed. A creator without one of
+  // these roles gets a 403, not a silently-ignored field: leaving an unauthorized
+  // assignment attempt silently unassigned would look like the request "worked" and
+  // hide the denial from both the user and the audit trail.
+  private static readonly CAN_ASSIGN_AT_CREATION = new Set(['admin', 'manager', 'noc']);
+
+  async create(tenantId: string, dto: any, actorId?: string, roles: string[] = []) {
+    if (dto.assignee_id || dto.assigned_team_id) {
+      if (!roles.some(r => CaseService.CAN_ASSIGN_AT_CREATION.has(r))) {
+        throw new ForbiddenException('You do not have permission to assign a case during creation.');
+      }
+      await this.validateAssignmentEligibility(tenantId, dto.assignee_id, dto.assigned_team_id);
+    }
+
     const caseNumber = await this.nextCaseNumber(tenantId, dto.type);
     // C4 — compute SLA from a profile, but honour any SLA the caller already
     // computed (e.g. MDM-aware alarm ingestion) so a richer SLA is never lost.
